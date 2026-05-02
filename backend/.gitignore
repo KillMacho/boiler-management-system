@@ -14,6 +14,9 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# uploads (user content — not committed)
+uploads/
+
 # OS
 Thumbs.db
 .DS_Store

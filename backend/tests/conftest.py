@@ -14,9 +14,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+import pytest_asyncio
+
 from app.config import settings
 from app.database import get_db
 from app.main import app
+from app.services.reference_cache import reference_cache
 
 _test_engine = create_async_engine(
     settings.sqlalchemy_async_url,
@@ -39,6 +42,13 @@ async def _get_test_db() -> AsyncGenerator:
 
 # Override the production DB dependency for the whole test session.
 app.dependency_overrides[get_db] = _get_test_db
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _warmup_reference_cache() -> None:
+    """Warm reference_cache before any test runs (startup event doesn't fire in ASGI transport)."""
+    async with _TestSession() as session:
+        await reference_cache.warmup(session)
 
 
 @pytest.fixture(scope="session")

@@ -57,7 +57,15 @@ class RequestBase(BaseModel):
     status: str = Field(max_length=30)
 
 
-class RequestCreate(RequestBase):
+class RequestCreate(BaseModel):
+    """Input schema — service auto-fills number, type, priority, status from description."""
+    boiler_id: int
+    description: Optional[str] = Field(default=None, max_length=2000)
+    source: str = Field(max_length=20)
+    number: Optional[str] = Field(default=None, max_length=30)
+    type_id: Optional[int] = None
+    priority_id: Optional[int] = None
+    status: Optional[str] = Field(default=None, max_length=30)
     created_by: Optional[int] = None
 
 

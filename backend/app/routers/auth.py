@@ -142,3 +142,40 @@ async def logout(token: str = Depends(oauth2_scheme)) -> dict:
 )
 async def me(user: User = Depends(get_current_user)) -> UserInfo:
     return _user_info(user)
+
+
+@router.get(
+    "/me/permissions",
+    summary="Флаги разрешений текущего пользователя (для UI)",
+)
+async def me_permissions(user: User = Depends(get_current_user)) -> dict:
+    from app.services.permissions import (
+        AUDIT_READ,
+        BOILER_WRITE,
+        CUSTOMER_WRITE,
+        FINANCE_WRITE,
+        HR_WRITE,
+        MAINTENANCE_WRITE,
+        REQUEST_CREATE,
+        REQUEST_WRITE,
+        THRESHOLD_WRITE,
+        WAREHOUSE_WRITE,
+        WORK_ORDER_WRITE,
+    )
+
+    roles = set(user.role_names)
+    return {
+        "roles": list(roles),
+        "can_read": True,
+        "can_create_request": bool(roles & set(REQUEST_CREATE)),
+        "can_write_request": bool(roles & set(REQUEST_WRITE)),
+        "can_write_work_order": bool(roles & set(WORK_ORDER_WRITE)),
+        "can_write_boiler": bool(roles & set(BOILER_WRITE)),
+        "can_write_warehouse": bool(roles & set(WAREHOUSE_WRITE)),
+        "can_write_hr": bool(roles & set(HR_WRITE)),
+        "can_write_finance": bool(roles & set(FINANCE_WRITE)),
+        "can_write_maintenance": bool(roles & set(MAINTENANCE_WRITE)),
+        "can_write_customer": bool(roles & set(CUSTOMER_WRITE)),
+        "can_write_threshold": bool(roles & set(THRESHOLD_WRITE)),
+        "can_read_audit": bool(roles & set(AUDIT_READ)),
+    }
