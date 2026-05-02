@@ -1,10 +1,13 @@
-"""CRUD for maintenance: types, regulations, schedules, plan_items."""
+"""CRUD for maintenance: types, regulations, schedules, plan_items.
+Also: generate-plan, upcoming regulations, approve plan item.
+"""
 from __future__ import annotations
 
 from datetime import date as date_type
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -167,3 +170,75 @@ async def update_plan_item(
     obj = await item_crud.update(session, obj, payload)
     await audit_service.log(session, user_id=user.id, action="entity_updated", entity_type="maintenance_plan_item", entity_id=obj.id, autocommit=True)
     return obj
+
+
+# ── Day 4: planner endpoints ──────────────────────────────────────────────────
+
+class GeneratePlanRequest(BaseModel):
+    period_start: date_type
+    period_end: date_type
+
+
+class GeneratePlanResponse(BaseModel):
+    schedule_id: int
+    items_created: int
+    brigades_assigned: int
+
+
+@router.post("/maintenance/generate-plan", response_model=GeneratePlanResponse, status_code=status.HTTP_201_CREATED)
+async def generate_maintenance_plan(
+    payload: GeneratePlanRequest = Body(...),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(MAINTENANCE_WRITE)),
+):
+    """Auto-generate maintenance schedule for the given period from regulations."""
+    from app.services.maintenance_planner import generate_plan
+
+    result = await generate_plan(
+        session,
+        period_start=payload.period_start,
+        period_end=payload.period_end,
+        user_id=user.id,
+    )
+    return GeneratePlanResponse(
+        schedule_id=result.schedule_id,
+        items_created=result.items_created,
+        brigades_assigned=result.brigades_assigned,
+    )
+
+
+@router.get("/maintenance/plan/{schedule_id}", response_model=List[MaintenancePlanItemResponse], dependencies=[Depends(RoleChecker(READ_ANY))])
+async def get_plan(
+    schedule_id: int,
+    session: AsyncSession = Depends(get_db),
+):
+    """List all plan items for a schedule."""
+    rows = await session.execute(
+        select(MaintenancePlanItem)
+        .where(MaintenancePlanItem.schedule_id == schedule_id)
+        .order_by(MaintenancePlanItem.planned_date)
+    )
+    return list(rows.scalars().all())
+
+
+@router.get("/maintenance/upcoming", response_model=List[MaintenanceRegulationResponse], dependencies=[Depends(RoleChecker(READ_ANY))])
+async def upcoming_maintenance(
+    days_ahead: int = Query(7, ge=1, le=90),
+    session: AsyncSession = Depends(get_db),
+):
+    """Regulations due within the next N days (default 7) — for reminders."""
+    from app.services.maintenance_planner import get_upcoming_regulations
+
+    return await get_upcoming_regulations(session, days_ahead=days_ahead)
+
+
+@router.put("/maintenance/plan-item/{item_id}/approve", response_model=MaintenancePlanItemResponse)
+async def approve_plan_item(
+    item_id: int,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(MAINTENANCE_WRITE)),
+):
+    """Approve a maintenance plan item: create request + set status='approved'."""
+    from app.services.maintenance_planner import approve_plan_item
+
+    return await approve_plan_item(session, item_id=item_id, user_id=user.id)

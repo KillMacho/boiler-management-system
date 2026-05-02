@@ -1,4 +1,4 @@
-"""Work order lifecycle helpers (start, complete, photos, checklist)."""
+"""Work order lifecycle: start, complete (with material write-off), photos, checklist."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.requests import (
     Act,
+    Request,
     WorkOrder,
     WorkOrderChecklistItem,
     WorkOrderPhoto,
@@ -29,7 +30,7 @@ async def start(
     wo = await session.get(WorkOrder, work_order_id)
     if wo is None:
         raise not_found("work_order", work_order_id)
-    if wo.status != "assigned":
+    if wo.status not in ("assigned", "waiting_materials"):
         raise conflict(f"Work order in status {wo.status!r} cannot be started")
     wo.status = "in_progress"
     wo.started_at = _now()
@@ -52,8 +53,16 @@ async def complete(
     user_id: Optional[int],
     notes: Optional[str] = None,
     total_amount: Decimal = Decimal("0"),
-    create_act: bool = True,
+    create_act: bool = False,  # Act is now created via request status → act_generated
 ) -> WorkOrder:
+    """Complete a work order.
+
+    Day 4 changes vs Day 3:
+    - Writes off all reserved materials automatically.
+    - Sets the parent request to 'work_completed' (not 'completed').
+    - Does NOT auto-create Act (deferred to request status → 'act_generated').
+    - create_act=True is kept for backward compat if caller explicitly requests it.
+    """
     wo = await session.get(WorkOrder, work_order_id)
     if wo is None:
         raise not_found("work_order", work_order_id)
@@ -63,7 +72,21 @@ async def complete(
     wo.status = "completed"
     wo.completed_at = _now()
 
-    # auto-generate act stub if missing
+    # Write off reserved materials
+    from app.services.warehouse_service import write_off_for_work_order
+
+    lines_written = await write_off_for_work_order(
+        session, work_order_id=work_order_id, user_id=user_id
+    )
+
+    # Advance parent request to work_completed
+    request = await session.get(Request, wo.request_id)
+    if request and request.status == "in_progress":
+        from app.services.request_service import VALID_TRANSITIONS
+
+        if "work_completed" in VALID_TRANSITIONS.get(request.status, set()):
+            request.status = "work_completed"
+
     if create_act:
         existing_act = (
             await session.execute(select(Act).where(Act.work_order_id == wo.id))
@@ -73,6 +96,7 @@ async def complete(
                 work_order_id=wo.id,
                 number=await number_generator.next_act_number(session),
                 total_amount=total_amount,
+                pdf_path="/placeholder.pdf",
             )
             session.add(act)
 
@@ -82,7 +106,11 @@ async def complete(
         action="work_order_completed",
         entity_type="work_order",
         entity_id=wo.id,
-        details={"notes": notes, "total_amount": total_amount},
+        details={
+            "notes": notes,
+            "total_amount": str(total_amount),
+            "lines_written_off": lines_written,
+        },
     )
     try:
         await session.commit()

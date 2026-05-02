@@ -104,3 +104,45 @@ async def change_request_status(
     return await request_service.change_status(
         session, request_id=request_id, new_status=payload.status, user_id=user.id
     )
+
+
+class ManualAssignPayload(BaseModel):
+    brigade_id: int
+
+
+@router.post("/{request_id}/auto-assign", response_model=RequestCreatedResponse)
+async def auto_assign_brigade(
+    request_id: int,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(REQUEST_WRITE)),
+):
+    """Run smart brigade assignment algorithm on a new/unassigned request."""
+    request, work_order, warning = await request_service.auto_assign_brigade(
+        session, request_id=request_id, user_id=user.id
+    )
+    return RequestCreatedResponse(
+        request=RequestResponse.model_validate(request),
+        work_order=WorkOrderResponse.model_validate(work_order) if work_order else None,
+        warning=warning,
+    )
+
+
+@router.post("/{request_id}/manual-assign", response_model=RequestCreatedResponse, status_code=status.HTTP_200_OK)
+async def manual_assign_brigade(
+    request_id: int,
+    payload: ManualAssignPayload = Body(...),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(REQUEST_WRITE)),
+):
+    """Manually assign a specific brigade to an unassigned request."""
+    request, work_order = await request_service.manual_assign_brigade(
+        session,
+        request_id=request_id,
+        brigade_id=payload.brigade_id,
+        user_id=user.id,
+    )
+    return RequestCreatedResponse(
+        request=RequestResponse.model_validate(request),
+        work_order=WorkOrderResponse.model_validate(work_order),
+        warning=None,
+    )

@@ -1,9 +1,13 @@
-"""CRUD for warehouse: warehouses, materials, stock, movements, purchase_requests."""
+"""CRUD for warehouse: warehouses, materials, stock, movements, purchase_requests.
+Also: reserve, write-off, receive, check-min-stock business operations.
+"""
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -234,3 +238,106 @@ async def update_purchase_request(
     obj = await purchase_crud.update(session, obj, payload)
     await audit_service.log(session, user_id=user.id, action="entity_updated", entity_type="purchase_request", entity_id=obj.id, autocommit=True)
     return obj
+
+
+# ── Day 4: business operations ────────────────────────────────────────────────
+
+class MaterialLineItemSchema(BaseModel):
+    material_id: int
+    quantity: Decimal = Field(gt=0)
+
+
+class ReserveMaterialsRequest(BaseModel):
+    work_order_id: int
+    materials: List[MaterialLineItemSchema]
+
+
+class ReserveMaterialsResponse(BaseModel):
+    reserved_count: int
+    purchase_requests_created: List[int]
+    all_reserved: bool
+    work_order_status: Optional[str] = None
+
+
+class WriteMaterialsRequest(BaseModel):
+    work_order_id: int
+    materials: List[MaterialLineItemSchema]
+
+
+class ReceiveMaterialRequest(BaseModel):
+    material_id: int
+    warehouse_id: int
+    quantity: Decimal = Field(gt=0)
+    purchase_request_id: Optional[int] = None
+
+
+@router.post("/warehouse/reserve", response_model=ReserveMaterialsResponse)
+async def reserve_materials(
+    payload: ReserveMaterialsRequest = Body(...),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(WAREHOUSE_WRITE)),
+):
+    """Reserve materials for a work order. Creates purchase requests for deficits."""
+    from app.services.warehouse_service import MaterialLineItem, reserve_materials as svc_reserve
+    from app.models.requests import WorkOrder
+
+    items = [MaterialLineItem(m.material_id, m.quantity) for m in payload.materials]
+    result = await svc_reserve(
+        session, work_order_id=payload.work_order_id, materials=items, user_id=user.id
+    )
+    wo = await session.get(WorkOrder, payload.work_order_id)
+    return ReserveMaterialsResponse(
+        reserved_count=len(result.reserved),
+        purchase_requests_created=result.purchase_requests_created,
+        all_reserved=result.all_reserved,
+        work_order_status=wo.status if wo else None,
+    )
+
+
+@router.post("/warehouse/write-off", response_model=List[MaterialMovementResponse])
+async def write_off_materials(
+    payload: WriteMaterialsRequest = Body(...),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(WAREHOUSE_WRITE)),
+):
+    """Explicitly write off materials from stock for a work order."""
+    from app.services.warehouse_service import MaterialLineItem, write_off_materials as svc_writeoff
+
+    items = [MaterialLineItem(m.material_id, m.quantity) for m in payload.materials]
+    movements = await svc_writeoff(
+        session, work_order_id=payload.work_order_id, materials=items, user_id=user.id
+    )
+    for m in movements:
+        await session.refresh(m)
+    return movements
+
+
+@router.post("/warehouse/receive", response_model=MaterialMovementResponse, status_code=status.HTTP_201_CREATED)
+async def receive_materials(
+    payload: ReceiveMaterialRequest = Body(...),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(WAREHOUSE_WRITE)),
+):
+    """Receive materials into warehouse (income movement, optionally links purchase request)."""
+    from app.services.warehouse_service import receive_materials as svc_receive
+
+    return await svc_receive(
+        session,
+        material_id=payload.material_id,
+        warehouse_id=payload.warehouse_id,
+        quantity=payload.quantity,
+        purchase_request_id=payload.purchase_request_id,
+        user_id=user.id,
+    )
+
+
+@router.post("/warehouse/check-min-stock", response_model=List[PurchaseRequestResponse])
+async def check_min_stock(
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(WAREHOUSE_WRITE)),
+):
+    """Check all materials against minimum stock levels; create purchase requests for deficits."""
+    from app.services.warehouse_service import check_min_stock_levels
+
+    created = await check_min_stock_levels(session, user_id=user.id)
+    return created

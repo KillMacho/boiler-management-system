@@ -1,10 +1,14 @@
-"""CRUD for personnel: employees, brigades+members, qualifications, departments, positions, timesheets."""
+"""CRUD for personnel: employees, brigades+members, qualifications, departments, positions, timesheets.
+Also: free brigades, brigade qualifications, timesheet business operations.
+"""
 from __future__ import annotations
 
 from datetime import date as date_type
+from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -172,6 +176,27 @@ async def list_brigades(
         session, skip=pagination.skip, limit=pagination.limit,
         include_deleted=include_deleted,
     )
+
+
+# Must be BEFORE /{brigade_id} to avoid "free" being treated as an int path param.
+@router.get("/brigades/free", response_model=List[BrigadeResponse], dependencies=[Depends(RoleChecker(READ_ANY))])
+async def list_free_brigades(session: AsyncSession = Depends(get_db)):
+    """Return brigades that are active and have no assigned/in_progress work orders."""
+    from app.models.requests import WorkOrder
+    from sqlalchemy import select as sa_select
+
+    busy_subq = (
+        sa_select(WorkOrder.brigade_id)
+        .where(WorkOrder.status.in_(["assigned", "in_progress"]))
+        .scalar_subquery()
+    )
+    rows = await session.execute(
+        sa_select(Brigade)
+        .where(Brigade.status != "inactive")
+        .where(~Brigade.id.in_(busy_subq))
+        .order_by(Brigade.id)
+    )
+    return list(rows.scalars().all())
 
 
 @router.get("/brigades/{brigade_id}", response_model=BrigadeResponse, dependencies=[Depends(RoleChecker(READ_ANY))])
@@ -372,3 +397,146 @@ async def update_timesheet(
     await session.refresh(obj)
     await audit_service.log(session, user_id=user.id, action="entity_updated", entity_type="timesheet", entity_id=ts_id, autocommit=True)
     return obj
+
+
+# ── Day 4: brigade qualification queries ──────────────────────────────────────
+
+class QualificationSummary(BaseModel):
+    qualification_id: int
+    qualification_name: str
+    employee_count: int
+
+
+@router.get("/brigades/{brigade_id}/qualifications", response_model=List[QualificationSummary], dependencies=[Depends(RoleChecker(READ_ANY))])
+async def get_brigade_qualifications(
+    brigade_id: int, session: AsyncSession = Depends(get_db)
+):
+    """Return aggregated qualifications (unique) of all brigade members."""
+    brigade = await session.get(Brigade, brigade_id)
+    if brigade is None:
+        raise not_found("brigade", brigade_id)
+
+    from app.models.personnel import BrigadeMember, EmployeeQualification, Qualification
+    from sqlalchemy import func
+
+    rows = await session.execute(
+        select(
+            Qualification.id,
+            Qualification.name,
+            func.count(EmployeeQualification.employee_id).label("employee_count"),
+        )
+        .join(EmployeeQualification, EmployeeQualification.qualification_id == Qualification.id)
+        .join(BrigadeMember, BrigadeMember.employee_id == EmployeeQualification.employee_id)
+        .where(BrigadeMember.brigade_id == brigade_id)
+        .group_by(Qualification.id, Qualification.name)
+        .order_by(Qualification.name)
+    )
+    return [
+        QualificationSummary(
+            qualification_id=r[0],
+            qualification_name=r[1],
+            employee_count=r[2],
+        )
+        for r in rows.fetchall()
+    ]
+
+
+# ── Day 4: timesheet service endpoints ───────────────────────────────────────
+
+class AutoFillRequest(BaseModel):
+    employee_id: int
+    year: int = Field(ge=2020, le=2035)
+    month: int = Field(ge=1, le=12)
+
+
+class AutoFillResponse(BaseModel):
+    employee_id: int
+    records_created: int
+
+
+class MonthlySummaryResponse(BaseModel):
+    employee_id: int
+    year: int
+    month: int
+    regular_hours: Decimal
+    overtime_hours: Decimal
+    vacation_hours: Decimal
+    sick_hours: Decimal
+    total_hours: Decimal
+
+
+class PayrollDataItemResponse(BaseModel):
+    employee_id: int
+    full_name: str
+    position: str
+    base_salary: Decimal
+    regular_hours: Decimal
+    overtime_hours: Decimal
+    vacation_hours: Decimal
+    sick_hours: Decimal
+    total_estimated: Decimal
+
+
+@router.post("/timesheets/auto-fill", response_model=AutoFillResponse)
+async def auto_fill_timesheet(
+    payload: AutoFillRequest = Body(...),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(RoleChecker(HR_WRITE)),
+):
+    """Auto-fill regular working days (8h) for an employee in the given month."""
+    import calendar
+    from app.services.timesheet_service import auto_fill_timesheet as svc_fill
+
+    first = date_type(payload.year, payload.month, 1)
+    last = date_type(payload.year, payload.month, calendar.monthrange(payload.year, payload.month)[1])
+    count = await svc_fill(session, employee_id=payload.employee_id, date_from=first, date_to=last)
+    return AutoFillResponse(employee_id=payload.employee_id, records_created=count)
+
+
+@router.get("/timesheets/summary", response_model=MonthlySummaryResponse, dependencies=[Depends(RoleChecker(READ_ANY))])
+async def get_timesheet_summary(
+    employee_id: int = Query(...),
+    year: int = Query(..., ge=2020, le=2035),
+    month: int = Query(..., ge=1, le=12),
+    session: AsyncSession = Depends(get_db),
+):
+    """Aggregate timesheet hours by type for a given employee and month."""
+    from app.services.timesheet_service import get_monthly_summary
+
+    summary = await get_monthly_summary(session, employee_id=employee_id, year=year, month=month)
+    return MonthlySummaryResponse(
+        employee_id=summary.employee_id,
+        year=summary.year,
+        month=summary.month,
+        regular_hours=summary.regular_hours,
+        overtime_hours=summary.overtime_hours,
+        vacation_hours=summary.vacation_hours,
+        sick_hours=summary.sick_hours,
+        total_hours=summary.total_hours,
+    )
+
+
+@router.get("/timesheets/payroll-data", response_model=List[PayrollDataItemResponse], dependencies=[Depends(RoleChecker(HR_WRITE))])
+async def get_payroll_data(
+    year: int = Query(..., ge=2020, le=2035),
+    month: int = Query(..., ge=1, le=12),
+    session: AsyncSession = Depends(get_db),
+):
+    """Return payroll data for all active employees (for 1С export)."""
+    from app.services.timesheet_service import get_payroll_data
+
+    items = await get_payroll_data(session, year=year, month=month)
+    return [
+        PayrollDataItemResponse(
+            employee_id=i.employee_id,
+            full_name=i.full_name,
+            position=i.position,
+            base_salary=i.base_salary,
+            regular_hours=i.regular_hours,
+            overtime_hours=i.overtime_hours,
+            vacation_hours=i.vacation_hours,
+            sick_hours=i.sick_hours,
+            total_estimated=i.total_estimated,
+        )
+        for i in items
+    ]
