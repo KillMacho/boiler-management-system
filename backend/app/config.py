@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     onec_password: str = "password123"
     onec_timeout: float = 30.0
 
+    # --- EDO Integration ---
+    edo_base_url: str = "http://localhost:8081"
+    edo_api_key: str = "demo_api_key_replace_in_production"
+    edo_timeout: float = 60.0
+    edo_org_inn: str = "7700000001"
+
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
     def _split_origins(cls, v):

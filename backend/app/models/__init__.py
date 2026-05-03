@@ -40,6 +40,7 @@ from app.models.requests import (  # noqa: F401
 )
 from app.models.telemetry import Telemetry, Threshold  # noqa: F401
 from app.models.users import AuditLog, Role, User, UserRole  # noqa: F401
+from app.models.reporting import RegulatoryReport  # noqa: F401
 from app.models.warehouse import (  # noqa: F401
     Material,
     MaterialCategory,
@@ -90,4 +91,5 @@ __all__ = [
     "MaterialStock",
     "PurchaseRequest",
     "Warehouse",
+    "RegulatoryReport",
 ]

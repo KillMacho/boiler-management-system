@@ -21,6 +21,7 @@ from app.routers import (
     maintenance,
     monitoring,
     personnel,
+    reporting,
     requests,
     telemetry,
     warehouse,
@@ -107,3 +108,4 @@ app.include_router(customers.router)
 app.include_router(audit.router)
 app.include_router(lookups.router)
 app.include_router(integration.router)
+app.include_router(reporting.router)
