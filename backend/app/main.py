@@ -16,6 +16,7 @@ from app.routers import (
     audit,
     boilers,
     customers,
+    integration,
     lookups,
     maintenance,
     monitoring,
@@ -105,3 +106,4 @@ app.include_router(personnel.router)
 app.include_router(customers.router)
 app.include_router(audit.router)
 app.include_router(lookups.router)
+app.include_router(integration.router)

@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     # below can split the comma-separated env value itself.
     cors_allowed_origins: Annotated[List[str], NoDecode] = Field(default_factory=list)
 
+    # --- 1C Integration ---
+    onec_base_url: str = "http://localhost:8080"
+    onec_username: str = "app_user"
+    onec_password: str = "password123"
+    onec_timeout: float = 30.0
+
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
     def _split_origins(cls, v):
