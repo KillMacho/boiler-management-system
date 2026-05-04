@@ -1,0 +1,108 @@
+@using BoilerManagement.Web.Services.DTOs
+
+<div class="boiler-card boiler-card--@Status" @onclick="OnDetailsClick">
+    <div class="boiler-card__header">
+        <div class="boiler-card__title-group">
+            <MudIcon Icon="@StatusIcon" Style="@($"color:{StatusColor}")" Class="boiler-card__status-icon" />
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="boiler-card__name">@Name</MudText>
+                <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">
+                    @TimeAgo
+                </MudText>
+            </div>
+        </div>
+        @if (AlertCount > 0)
+        {
+            <MudBadge Content="@AlertCount" Color="Color.Error" Overlap="true" Class="boiler-card__badge">
+                <MudIcon Icon="@Icons.Material.Filled.NotificationsActive" Color="Color.Error" Size="Size.Small" />
+            </MudBadge>
+        }
+    </div>
+
+    <div class="boiler-card__params">
+        @foreach (var p in _paramRows)
+        {
+            <div class="boiler-card__param-row @(p.Severity == "critical" ? "param--critical" : p.Severity == "warning" ? "param--warning" : "")">
+                <span class="param-label">@p.Label</span>
+                <span class="param-value">@p.Display</span>
+                <span class="param-norm">@p.Norm</span>
+            </div>
+        }
+    </div>
+
+    <div class="boiler-card__footer">
+        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                   OnClick="OnDetailsClick" StartIcon="@Icons.Material.Filled.BarChart">
+            Подробнее
+        </MudButton>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int BoilerId { get; set; }
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter, EditorRequired] public string Status { get; set; } = "unknown"; // green | yellow | red | unknown
+    [Parameter] public Dictionary<string, string?> Parameters { get; set; } = [];
+    [Parameter] public List<BreachDto> Breaches { get; set; } = [];
+    [Parameter] public DateTime? LastUpdate { get; set; }
+    [Parameter] public int AlertCount { get; set; }
+    [Parameter] public EventCallback OnDetails { get; set; }
+
+    private string StatusIcon => Status switch
+    {
+        "green"  => Icons.Material.Filled.CheckCircle,
+        "yellow" => Icons.Material.Filled.Warning,
+        "red"    => Icons.Material.Filled.Error,
+        _        => Icons.Material.Filled.HelpOutline,
+    };
+
+    private string StatusColor => Status switch
+    {
+        "green"  => "#4caf50",
+        "yellow" => "#ff9800",
+        "red"    => "#f44336",
+        _        => "#9e9e9e",
+    };
+
+    private string TimeAgo
+    {
+        get
+        {
+            if (LastUpdate is null) return "нет данных";
+            var diff = DateTime.UtcNow - LastUpdate.Value.ToUniversalTime();
+            if (diff.TotalSeconds < 60) return $"обновлено {(int)diff.TotalSeconds} сек. назад";
+            if (diff.TotalMinutes < 60) return $"обновлено {(int)diff.TotalMinutes} мин. назад";
+            return $"обновлено {(int)diff.TotalHours} ч. назад";
+        }
+    }
+
+    private record ParamRow(string Label, string Display, string Norm, string Severity);
+
+    private List<ParamRow> _paramRows = [];
+
+    protected override void OnParametersSet()
+    {
+        var breachMap = Breaches.ToDictionary(b => b.Parameter, b => b.Kind);
+        _paramRows =
+        [
+            MakeRow("temperature_heat",  "Температура подачи",   "°C",   "75–90",     breachMap),
+            MakeRow("pressure",          "Давление",             " МПа", "0.55–0.65", breachMap),
+            MakeRow("co_level",          "CO",                   " мг/м³","<50",      breachMap),
+            MakeRow("gas_flow",          "Расход газа",          " м³/ч","—",         breachMap),
+            MakeRow("water_level",       "Уровень воды",         "%",    ">50",       breachMap),
+            MakeRow("temperature_return","Температура обратки",  "°C",   "50–60",     breachMap),
+            MakeRow("furnace_draft",     "Разрежение",           " Па",  "-35…-25",   breachMap),
+        ];
+    }
+
+    private ParamRow MakeRow(string key, string label, string unit, string norm,
+        Dictionary<string, string> breachMap)
+    {
+        var raw = Parameters.GetValueOrDefault(key);
+        var display = raw is null ? "—" : $"{raw}{unit}";
+        breachMap.TryGetValue(key, out var severity);
+        return new ParamRow(label, display, norm, severity ?? "");
+    }
+
+    private async Task OnDetailsClick() => await OnDetails.InvokeAsync();
+}

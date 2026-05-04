@@ -1,0 +1,37 @@
+.stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 12px;
+    border-radius: 10px;
+    gap: 4px;
+    text-align: center;
+    transition: box-shadow 0.3s ease;
+}
+
+.stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.18) !important; }
+
+.stat-card--alarm {
+    animation: pulse-alarm 2s infinite;
+}
+
+@keyframes pulse-alarm {
+    0%, 100% { box-shadow: 0 2px 4px rgba(0,0,0,.12); }
+    50%       { box-shadow: 0 0 0 4px rgba(244,67,54,.3); }
+}
+
+.ws-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transition: background-color 0.4s ease;
+}
+
+.ws-dot--green  { background: #4caf50; box-shadow: 0 0 0 3px rgba(76,175,80,.25); }
+.ws-dot--yellow { background: #ff9800; animation: blink 1s infinite; }
+.ws-dot--red    { background: #f44336; }
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+}

@@ -59,6 +59,8 @@ builder.Services.AddHttpClient("bare", client =>
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<MonitoringService>();
+builder.Services.AddScoped<WebSocketService>();
 
 // ── MudBlazor ─────────────────────────────────────────────────────────────────
 builder.Services.AddMudServices(config =>

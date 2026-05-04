@@ -1,0 +1,237 @@
+@page "/monitoring"
+@attribute [Authorize(Roles = "dispatcher,chief_engineer,master,brigade_leader,operator")]
+@using BoilerManagement.Web.Services
+@using BoilerManagement.Web.Services.DTOs
+@inject MonitoringService MonitoringService
+@inject WebSocketService WsService
+@inject TokenStorageService TokenStorage
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@implements IAsyncDisposable
+
+<PageTitle>Мониторинг котельных</PageTitle>
+
+<!-- Заголовок и статус WS -->
+<div class="d-flex align-center justify-space-between mb-4 flex-wrap gap-2">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.MonitorHeart" Class="mr-2" />
+        Мониторинг котельных
+    </MudText>
+    <div class="d-flex align-center gap-3">
+        <MudTooltip Text="@WsStatusText">
+            <div class="d-flex align-center gap-1" style="cursor:default">
+                <div class="ws-dot ws-dot--@WsDotClass"></div>
+                <MudText Typo="Typo.caption">@WsStatusText</MudText>
+            </div>
+        </MudTooltip>
+        <MudTooltip Text="Обновить">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small"
+                           OnClick="RefreshAsync" Disabled="_loading" />
+        </MudTooltip>
+    </div>
+</div>
+
+<!-- Статистика -->
+<MudGrid Class="mb-4">
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="stat-card" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Whatshot" Style="color:#1565C0" Size="Size.Large" />
+            <MudText Typo="Typo.h4"><strong>@_boilers.Count</strong></MudText>
+            <MudText Typo="Typo.body2" Style="color:var(--mud-palette-text-secondary)">Всего котельных</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="stat-card" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color:#4caf50" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Style="color:#4caf50"><strong>@CountByStatus("green")</strong></MudText>
+            <MudText Typo="Typo.body2" Style="color:var(--mud-palette-text-secondary)">В норме</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="stat-card" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Style="color:#ff9800" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Style="color:#ff9800"><strong>@CountByStatus("yellow")</strong></MudText>
+            <MudText Typo="Typo.body2" Style="color:var(--mud-palette-text-secondary)">Предупреждение</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="@($"stat-card {(_hasAlarms ? "stat-card--alarm" : "")}")" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Error" Style="color:#f44336" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Style="color:#f44336"><strong>@CountByStatus("red")</strong></MudText>
+            <MudText Typo="Typo.body2" Style="color:var(--mud-palette-text-secondary)">Авария</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Сетка котельных -->
+@if (_loading)
+{
+    <MudGrid>
+        @for (int i = 0; i < 6; i++)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="260px" />
+            </MudItem>
+        }
+    </MudGrid>
+}
+else if (_boilers.Count == 0)
+{
+    <MudAlert Severity="Severity.Warning">Нет данных. Убедитесь, что бэкенд запущен и симулятор отправляет телеметрию.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        @foreach (var b in _boilers.OrderBy(b => b.BoilerId))
+        {
+            <MudItem xs="12" sm="6" md="4" @key="b.BoilerId">
+                <BoilerCard BoilerId="b.BoilerId"
+                            Name="@b.Name"
+                            Status="@b.Status"
+                            Parameters="@b.Parameters"
+                            Breaches="@b.Breaches"
+                            LastUpdate="@b.LastUpdate"
+                            AlertCount="@AlarmCount(b.BoilerId)"
+                            OnDetails="@(() => OpenDetailsAsync(b))" />
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<!-- Активные аварии -->
+@if (_alarms.Count > 0 || !_loading)
+{
+    <MudText Typo="Typo.h6" Class="mt-6 mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.NotificationsActive" Class="mr-2" Color="Color.Error" />
+        Активные аварийные заявки
+    </MudText>
+    <ActiveAlertsTable Alarms="_alarms" OnAlarm="OnAlarmClickedAsync" />
+}
+
+@code {
+    private List<BoilerStatusDto> _boilers = [];
+    private List<ActiveAlarmDto> _alarms = [];
+    private bool _loading = true;
+    private WsConnectionState _wsState = WsConnectionState.Disconnected;
+
+    private bool _hasAlarms => CountByStatus("red") > 0;
+    private int CountByStatus(string s) => _boilers.Count(b => b.Status == s);
+    private int AlarmCount(int boilerId) => _alarms.Count(a => a.BoilerId == boilerId);
+
+    private string WsStatusText => _wsState switch
+    {
+        WsConnectionState.Connected    => "Подключено (live)",
+        WsConnectionState.Connecting   => "Подключение…",
+        WsConnectionState.Reconnecting => "Переподключение…",
+        _                              => "Отключено",
+    };
+
+    private string WsDotClass => _wsState switch
+    {
+        WsConnectionState.Connected    => "green",
+        WsConnectionState.Reconnecting => "yellow",
+        _                              => "red",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+
+        WsService.OnStateChanged    += OnWsStateChanged;
+        WsService.OnTelemetryUpdate += OnTelemetryUpdate;
+        WsService.OnFullStatus      += OnFullStatus;
+
+        await WsService.ConnectAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var t1 = MonitoringService.GetStatusAsync();
+        var t2 = MonitoringService.GetActiveAlarmsAsync();
+        await Task.WhenAll(t1, t2);
+        _boilers = t1.Result;
+        _alarms  = t2.Result;
+        _loading = false;
+    }
+
+    private void OnWsStateChanged(WsConnectionState state)
+    {
+        _wsState = state;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnFullStatus(WsFullStatus msg)
+    {
+        foreach (var snap in msg.Boilers)
+        {
+            var existing = _boilers.FirstOrDefault(b => b.BoilerId == snap.BoilerId);
+            if (existing is not null)
+            {
+                var idx = _boilers.IndexOf(existing);
+                _boilers[idx] = existing with
+                {
+                    Status     = snap.Status,
+                    Parameters = snap.Parameters,
+                    Breaches   = snap.Breaches,
+                    LastUpdate = DateTimeOffset.FromUnixTimeMilliseconds((long)(snap.UpdatedAt * 1000)).UtcDateTime,
+                };
+            }
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTelemetryUpdate(WsTelemetryUpdate msg)
+    {
+        var existing = _boilers.FirstOrDefault(b => b.BoilerId == msg.BoilerId);
+        if (existing is not null)
+        {
+            var idx = _boilers.IndexOf(existing);
+            _boilers[idx] = existing with
+            {
+                Status     = msg.Status,
+                Parameters = msg.Parameters,
+                Breaches   = msg.Breaches,
+                LastUpdate = DateTime.UtcNow,
+            };
+
+            // Notify if new alarm
+            if (msg.AutoRequestId.HasValue)
+            {
+                InvokeAsync(async () =>
+                {
+                    Snackbar.Add($"⚠ Авария на котельной #{msg.BoilerId}! Создана заявка #{msg.AutoRequestId}", Severity.Error);
+                    _alarms = await MonitoringService.GetActiveAlarmsAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenDetailsAsync(BoilerStatusDto boiler)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(BoilerDetailDialog.BoilerId),   boiler.BoilerId },
+            { nameof(BoilerDetailDialog.BoilerName), boiler.Name },
+            { nameof(BoilerDetailDialog.Alarms),     _alarms },
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<BoilerDetailDialog>(boiler.Name, parameters, options);
+    }
+
+    private Task OnAlarmClickedAsync(ActiveAlarmDto alarm)
+    {
+        Snackbar.Add($"Заявка {alarm.Number}: {alarm.Description}", Severity.Warning);
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        WsService.OnStateChanged    -= OnWsStateChanged;
+        WsService.OnTelemetryUpdate -= OnTelemetryUpdate;
+        WsService.OnFullStatus      -= OnFullStatus;
+    }
+}

@@ -141,7 +141,7 @@ async def _ingest_one(session: AsyncSession, payload: TelemetryIn) -> TelemetryA
             except Exception:  # noqa: BLE001
                 logger.exception("auto-request creation failed for boiler_id=%s", payload.boiler_id)
 
-    return TelemetryAccepted(
+    accepted = TelemetryAccepted(
         id=record.id,
         boiler_id=record.boiler_id,
         timestamp=record.timestamp,
@@ -153,6 +153,24 @@ async def _ingest_one(session: AsyncSession, payload: TelemetryIn) -> TelemetryA
         ],
         auto_request_id=auto_request_id,
     )
+
+    # Broadcast to WebSocket clients (fire-and-forget — telemetry must not fail on WS errors)
+    try:
+        from app.websocket.monitoring_ws import broadcast_telemetry_update
+        dashboard_status = {"normal": "green", "warning": "yellow", "critical": "red"}.get(record.status, "unknown")
+        cache_snap = StatusCache.get(payload.boiler_id)
+        await broadcast_telemetry_update(
+            boiler_id=record.boiler_id,
+            timestamp=record.timestamp,
+            status=dashboard_status,
+            parameters=cache_snap.get("parameters", {}) if cache_snap else {},
+            breaches=accepted.breaches,
+            auto_request_id=auto_request_id,
+        )
+    except Exception:
+        logger.exception("WS broadcast failed for boiler_id=%s", payload.boiler_id)
+
+    return accepted
 
 
 @router.post("/", response_model=TelemetryAccepted, status_code=status.HTTP_201_CREATED)

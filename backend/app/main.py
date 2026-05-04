@@ -27,6 +27,7 @@ from app.routers import (
     warehouse,
     work_orders,
 )
+from app.websocket import monitoring_ws
 from app.services.reference_cache import reference_cache
 from app.utils.logging_middleware import access_log_middleware
 
@@ -109,3 +110,4 @@ app.include_router(audit.router)
 app.include_router(lookups.router)
 app.include_router(integration.router)
 app.include_router(reporting.router)
+app.include_router(monitoring_ws.router)

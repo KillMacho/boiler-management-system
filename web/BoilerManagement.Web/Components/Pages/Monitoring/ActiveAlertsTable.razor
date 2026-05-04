@@ -1,0 +1,57 @@
+@using BoilerManagement.Web.Services.DTOs
+
+@if (Alarms.Count == 0)
+{
+    <MudAlert Severity="Severity.Success" Dense="true">
+        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+        Активных аварий нет — все котельные в норме
+    </MudAlert>
+}
+else
+{
+    <MudSimpleTable Dense="true" Striped="true" Hover="true" Style="width:100%">
+        <thead>
+            <tr>
+                <th>Котельная</th>
+                <th>Номер заявки</th>
+                <th>Описание</th>
+                <th>Статус</th>
+                <th>Создана</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var alarm in SortedAlarms)
+            {
+                <tr style="cursor:pointer" @onclick="() => OnAlarmClick(alarm)">
+                    <td>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">
+                            Котельная #@alarm.BoilerId
+                        </MudChip>
+                    </td>
+                    <td><strong>@alarm.Number</strong></td>
+                    <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        @alarm.Description
+                    </td>
+                    <td>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(alarm.Status == "new" ? Color.Error : alarm.Status == "assigned" ? Color.Warning : Color.Info)">
+                            @alarm.Status
+                        </MudChip>
+                    </td>
+                    <td style="white-space:nowrap">@alarm.CreatedAt.ToLocalTime().ToString("dd.MM HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+}
+
+@code {
+    [Parameter] public List<ActiveAlarmDto> Alarms { get; set; } = [];
+    [Parameter] public EventCallback<ActiveAlarmDto> OnAlarm { get; set; }
+
+    private IEnumerable<ActiveAlarmDto> SortedAlarms =>
+        Alarms.OrderByDescending(a => a.CreatedAt);
+
+    private async Task OnAlarmClick(ActiveAlarmDto alarm) =>
+        await OnAlarm.InvokeAsync(alarm);
+}

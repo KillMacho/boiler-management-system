@@ -1,0 +1,87 @@
+/* ── Card shell ─────────────────────────────────────────────────── */
+.boiler-card {
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.25s ease, border-left-color 0.4s ease, background-color 0.4s ease;
+    border-left: 5px solid #9e9e9e;
+    background: var(--mud-palette-surface);
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.boiler-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+
+.boiler-card--green  { border-left-color: #4caf50; }
+.boiler-card--yellow { border-left-color: #ff9800; }
+.boiler-card--red    { border-left-color: #f44336; animation: pulse-red 2s infinite; }
+.boiler-card--unknown { border-left-color: #9e9e9e; }
+
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+    50%       { box-shadow: 0 0 0 6px rgba(244, 67, 54, .25), 0 2px 6px rgba(0,0,0,.12); }
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.boiler-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 8px;
+}
+
+.boiler-card__title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.boiler-card__status-icon { font-size: 28px; flex-shrink: 0; transition: color 0.4s ease; }
+
+.boiler-card__name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.boiler-card__badge { flex-shrink: 0; }
+
+/* ── Parameter table ────────────────────────────────────────────── */
+.boiler-card__params {
+    flex: 1;
+    padding: 0 14px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.boiler-card__param-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 6px;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--mud-palette-divider);
+    font-size: 0.78rem;
+    transition: color 0.3s ease;
+}
+
+.boiler-card__param-row:last-child { border-bottom: none; }
+
+.param-label { color: var(--mud-palette-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.param-value { font-weight: 600; text-align: right; white-space: nowrap; }
+.param-norm  { color: var(--mud-palette-text-disabled); text-align: right; white-space: nowrap; min-width: 55px; }
+
+.param--warning .param-value { color: #e65100; }
+.param--critical .param-value { color: #c62828; font-weight: 700; }
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+.boiler-card__footer {
+    padding: 4px 8px 8px;
+    display: flex;
+    justify-content: flex-end;
+}
