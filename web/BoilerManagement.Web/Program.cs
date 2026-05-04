@@ -50,6 +50,13 @@ builder.Services.AddHttpClient<ApiClient>(client =>
 })
 .AddHttpMessageHandler<AuthTokenHandler>();
 
+// Bare client for auth endpoints (no token handler — used during login/refresh)
+builder.Services.AddHttpClient("bare", client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<AuthService>();
 

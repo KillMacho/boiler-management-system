@@ -8,6 +8,7 @@ namespace BoilerManagement.Web.Services;
 
 public class AuthService(
     ApiClient api,
+    IHttpClientFactory httpClientFactory,
     TokenStorageService tokenStorage,
     JwtAuthenticationStateProvider authStateProvider,
     NavigationManager navigation,
@@ -22,13 +23,14 @@ public class AuthService(
     {
         try
         {
-            // Backend expects OAuth2 form-data
+            // Use bare client (no AuthTokenHandler) — no token exists yet during login
+            var http = httpClientFactory.CreateClient("bare");
             var formData = new FormUrlEncodedContent([
                 new("username", username),
                 new("password", password),
             ]);
 
-            var resp = await api.Http.PostAsync("/api/auth/login", formData);
+            var resp = await http.PostAsync("/api/auth/login", formData);
             if (!resp.IsSuccessStatusCode)
             {
                 var err = await resp.Content.ReadAsStringAsync();
@@ -64,7 +66,7 @@ public class AuthService(
     {
         try
         {
-            await api.Http.PostAsync("/api/auth/logout", null);
+            await api.Http.PostAsync("/api/auth/logout", content: null);
         }
         catch (Exception ex)
         {
