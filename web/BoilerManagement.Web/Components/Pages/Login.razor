@@ -20,7 +20,7 @@
     </MudCardHeader>
 
     <MudCardContent>
-        <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
+        <EditForm Model="_model" OnValidSubmit="HandleLoginAsync" FormName="login">
             <DataAnnotationsValidator />
 
             <MudTextField @bind-Value="_model.Username"
