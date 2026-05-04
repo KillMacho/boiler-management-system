@@ -1,16 +1,19 @@
+using System.Text.Json.Serialization;
+
 namespace BoilerManagement.Web.Services.DTOs;
 
 public record LoginRequest(string Username, string Password);
 
 public record LoginResponse(
-    string AccessToken,
-    string RefreshToken,
-    string TokenType,
-    UserInfo User);
+    [property: JsonPropertyName("access_token")]  string AccessToken,
+    [property: JsonPropertyName("refresh_token")] string RefreshToken,
+    [property: JsonPropertyName("token_type")]    string TokenType,
+    [property: JsonPropertyName("user")]          UserInfo User);
 
-public record RefreshRequest(string RefreshToken);
+public record RefreshRequest(
+    [property: JsonPropertyName("refresh_token")] string RefreshToken);
 
 public record RefreshResponse(
-    string AccessToken,
-    string RefreshToken,
-    string TokenType);
+    [property: JsonPropertyName("access_token")]  string AccessToken,
+    [property: JsonPropertyName("refresh_token")] string RefreshToken,
+    [property: JsonPropertyName("token_type")]    string TokenType);

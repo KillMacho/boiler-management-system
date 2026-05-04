@@ -92,7 +92,7 @@
             if (success)
             {
                 var redirect = string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl);
-                Navigation.NavigateTo(redirect, forceLoad: false);
+                Navigation.NavigateTo(redirect, forceLoad: true);
             }
         }
         finally

@@ -49,7 +49,7 @@ public class AuthService(
             authStateProvider.NotifyUserAuthentication(body.AccessToken);
 
             logger.LogInformation("User {User} logged in", username);
-            snackbar.Add($"Добро пожаловать, {body.User.FullName}!", Severity.Success);
+            snackbar.Add($"Добро пожаловать, {body.User.Username}!", Severity.Success);
             return true;
         }
         catch (Exception ex)
