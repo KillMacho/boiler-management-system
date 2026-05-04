@@ -81,7 +81,7 @@
         if (state.User.Identity?.IsAuthenticated == true)
         {
             var redirect = string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl);
-            Navigation.NavigateTo(redirect, forceLoad: true);
+            Navigation.NavigateTo(redirect, forceLoad: false);
         }
     }
 
@@ -103,7 +103,7 @@
             if (success)
             {
                 var redirect = string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl);
-                Navigation.NavigateTo(redirect, forceLoad: true);
+                Navigation.NavigateTo(redirect, forceLoad: false);
             }
         }
         finally
