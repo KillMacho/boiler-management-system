@@ -56,8 +56,8 @@ public class AuthService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Login exception for {User}", username);
-            snackbar.Add("Ошибка соединения с сервером", Severity.Error);
+            logger.LogError(ex, "Login exception for {User}: {Type} {Msg}", username, ex.GetType().Name, ex.Message);
+            snackbar.Add($"Ошибка: {ex.GetType().Name}: {ex.Message}", Severity.Error);
             return false;
         }
     }

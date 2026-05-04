@@ -2,6 +2,7 @@
 @layout LoginLayout
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Вход — Котельный сервис</PageTitle>
 
@@ -73,6 +74,16 @@
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            var redirect = string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl);
+            Navigation.NavigateTo(redirect, forceLoad: true);
+        }
+    }
 
     private void TogglePasswordVisibility()
     {
