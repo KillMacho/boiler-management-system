@@ -1,0 +1,12 @@
+@page "/accounting"
+@attribute [Authorize(Roles = "accountant,chief_engineer")]
+
+<PageTitle>Бухгалтерия</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Class="mr-2" />
+    Бухгалтерия
+</MudText>
+<MudAlert Severity="Severity.Info">
+    Будет реализовано на Дне 9: акты, начисления, интеграция с 1С.
+</MudAlert>

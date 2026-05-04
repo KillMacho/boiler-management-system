@@ -1,0 +1,21 @@
+## .NET gitignore
+**/[Bb]in/
+**/[Oo]bj/
+**/.vs/
+**/*.user
+**/*.suo
+**/.vscode/
+**/TestResults/
+
+## NuGet
+*.nupkg
+*.snupkg
+project.lock.json
+.nuget/
+
+## Rider
+.idea/
+
+## OS
+.DS_Store
+Thumbs.db

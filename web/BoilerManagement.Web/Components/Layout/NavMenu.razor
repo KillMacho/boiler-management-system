@@ -1,0 +1,98 @@
+﻿<MudNavMenu>
+
+    <!-- Главная — для всех -->
+    <MudNavLink Href="/" Match="NavLinkMatch.All"
+                Icon="@Icons.Material.Filled.Home">
+        Главная
+    </MudNavLink>
+
+    <!-- Мониторинг -->
+    <AuthorizeView Roles="dispatcher,chief_engineer,master,operator,brigade_leader">
+        <MudNavLink Href="/monitoring"
+                    Icon="@Icons.Material.Filled.MonitorHeart">
+            Мониторинг котельных
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Заявки -->
+    <AuthorizeView Roles="dispatcher,chief_engineer,master,brigade_leader,operator,storekeeper,accountant">
+        <MudNavLink Href="/requests"
+                    Icon="@Icons.Material.Filled.Assignment">
+            Заявки
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Наряды -->
+    <AuthorizeView Roles="chief_engineer,master,brigade_leader">
+        <MudNavLink Href="/work-orders"
+                    Icon="@Icons.Material.Filled.Engineering">
+            Наряды
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Планирование ТО -->
+    <AuthorizeView Roles="chief_engineer,master">
+        <MudNavLink Href="/maintenance"
+                    Icon="@Icons.Material.Filled.Build">
+            Планирование ТО
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Оборудование -->
+    <AuthorizeView Roles="chief_engineer,master,operator">
+        <MudNavLink Href="/equipment"
+                    Icon="@Icons.Material.Filled.Devices">
+            Оборудование
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Склад -->
+    <AuthorizeView Roles="storekeeper,master,chief_engineer">
+        <MudNavLink Href="/warehouse"
+                    Icon="@Icons.Material.Filled.Warehouse">
+            Склад
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Персонал -->
+    <AuthorizeView Roles="hr_officer,chief_engineer">
+        <MudNavLink Href="/personnel"
+                    Icon="@Icons.Material.Filled.People">
+            Персонал
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Бухгалтерия -->
+    <AuthorizeView Roles="accountant,chief_engineer">
+        <MudNavLink Href="/accounting"
+                    Icon="@Icons.Material.Filled.AccountBalance">
+            Бухгалтерия
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Отчётность -->
+    <AuthorizeView Roles="accountant,chief_engineer">
+        <MudNavLink Href="/reporting"
+                    Icon="@Icons.Material.Filled.Description">
+            Отчётность
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Аудит -->
+    <AuthorizeView Roles="chief_engineer,dispatcher">
+        <MudNavLink Href="/audit"
+                    Icon="@Icons.Material.Filled.History">
+            Аудит
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Настройки -->
+    <AuthorizeView Roles="chief_engineer">
+        <MudNavLink Href="/settings"
+                    Icon="@Icons.Material.Filled.Settings">
+            Настройки
+        </MudNavLink>
+    </AuthorizeView>
+
+</MudNavMenu>
+

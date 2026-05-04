@@ -1,0 +1,12 @@
+@page "/requests"
+@attribute [Authorize(Roles = "dispatcher,chief_engineer,master,brigade_leader,operator,storekeeper,accountant")]
+
+<PageTitle>Заявки</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />
+    Заявки на обслуживание
+</MudText>
+<MudAlert Severity="Severity.Info">
+    Будет реализовано на Дне 9: список заявок с фильтрацией, создание, смена статуса.
+</MudAlert>

@@ -1,0 +1,12 @@
+@page "/maintenance"
+@attribute [Authorize(Roles = "chief_engineer,master")]
+
+<PageTitle>Планирование ТО</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Build" Class="mr-2" />
+    Планирование технического обслуживания
+</MudText>
+<MudAlert Severity="Severity.Info">
+    Будет реализовано на Дне 9: расписания ТО, план-позиции, регламенты.
+</MudAlert>

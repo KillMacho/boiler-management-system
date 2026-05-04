@@ -1,0 +1,12 @@
+@page "/settings"
+@attribute [Authorize(Roles = "chief_engineer")]
+
+<PageTitle>Настройки</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-2" />
+    Настройки системы
+</MudText>
+<MudAlert Severity="Severity.Info">
+    Будет реализовано на Дне 9: пороговые значения, справочники, параметры системы.
+</MudAlert>

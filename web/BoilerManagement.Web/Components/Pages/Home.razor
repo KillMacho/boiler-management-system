@@ -1,0 +1,53 @@
+﻿@page "/"
+@attribute [Authorize]
+
+<PageTitle>Главная — Котельный сервис</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
+    Дашборд
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Дашборд будет реализован на Дне 9. Здесь появятся карточки со статусами котельных,
+    активные аварии и сводная телеметрия.
+</MudAlert>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Whatshot" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h6" Class="mt-2">Котельные</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Загружается на Дне 9</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Large" Color="Color.Warning" />
+                <MudText Typo="Typo.h6" Class="mt-2">Активные аварии</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Загружается на Дне 9</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Info" />
+                <MudText Typo="Typo.h6" Class="mt-2">Открытые заявки</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Загружается на Дне 9</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Engineering" Size="Size.Large" Color="Color.Success" />
+                <MudText Typo="Typo.h6" Class="mt-2">Бригады в работе</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Загружается на Дне 9</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>

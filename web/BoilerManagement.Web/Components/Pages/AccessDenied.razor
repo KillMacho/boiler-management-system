@@ -1,0 +1,16 @@
+@page "/access-denied"
+@attribute [Authorize]
+
+<PageTitle>Доступ запрещён</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8 text-center">
+    <MudIcon Icon="@Icons.Material.Filled.Block" Size="Size.Large" Color="Color.Error" Class="mb-4" Style="font-size: 5rem;" />
+    <MudText Typo="Typo.h4" Class="mb-2">Доступ запрещён</MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-6">
+        У вас недостаточно прав для просмотра этой страницы.
+    </MudText>
+    <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Home">
+        На главную
+    </MudButton>
+</MudContainer>

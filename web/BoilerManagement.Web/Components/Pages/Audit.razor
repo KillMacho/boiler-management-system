@@ -1,0 +1,12 @@
+@page "/audit"
+@attribute [Authorize(Roles = "chief_engineer,dispatcher")]
+
+<PageTitle>Аудит</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+    Журнал аудита
+</MudText>
+<MudAlert Severity="Severity.Info">
+    Будет реализовано на Дне 9: журнал действий пользователей с фильтрацией.
+</MudAlert>
