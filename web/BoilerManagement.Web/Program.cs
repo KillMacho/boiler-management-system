@@ -15,12 +15,9 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// ── Authentication & Authorization ───────────────────────────────────────────
-// Blazor Server authorization is handled by AuthenticationStateProvider + AuthorizeRouteView.
-// We register a no-op auth scheme so middleware doesn't throw on challenge.
-builder.Services.AddAuthentication("BlazorServer")
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
-               NoOpAuthHandler>("BlazorServer", _ => { });
+// ── Authorization ─────────────────────────────────────────────────────────────
+// In Blazor Server auth is handled entirely by JwtAuthenticationStateProvider
+// inside the SignalR circuit. No ASP.NET Core auth middleware scheme is needed.
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
@@ -64,9 +61,6 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
-app.UseStaticFiles();
-app.UseAuthentication();
-app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
