@@ -23,10 +23,11 @@ public static class JwtTokenHandler
 
             var claims = new List<Claim>(jwt.Claims);
 
-            // FastAPI / python-jose stores roles in the "role" claim (may be repeated)
-            // Ensure Microsoft ClaimTypes.Role claims are present for AuthorizeView
+            // Backend stores roles in "roles" claim as a JSON array.
+            // JwtSecurityTokenHandler flattens arrays into repeated claims with the same key.
+            // Map all of them to ClaimTypes.Role so AuthorizeView works.
             var roleClaims = claims
-                .Where(c => c.Type == "role" || c.Type == ClaimTypes.Role)
+                .Where(c => c.Type == "roles" || c.Type == "role" || c.Type == ClaimTypes.Role)
                 .Select(c => c.Value)
                 .Distinct()
                 .ToList();
@@ -35,10 +36,14 @@ public static class JwtTokenHandler
                 if (!claims.Any(c => c.Type == ClaimTypes.Role && c.Value == role))
                     claims.Add(new Claim(ClaimTypes.Role, role));
 
-            // Map "sub" → NameIdentifier if not already present
+            // Map "sub" → NameIdentifier and "username" → Name
             var sub = jwt.Subject;
             if (!string.IsNullOrEmpty(sub) && !claims.Any(c => c.Type == ClaimTypes.NameIdentifier))
                 claims.Add(new Claim(ClaimTypes.NameIdentifier, sub));
+
+            var username = claims.FirstOrDefault(c => c.Type == "username")?.Value;
+            if (!string.IsNullOrEmpty(username) && !claims.Any(c => c.Type == ClaimTypes.Name))
+                claims.Add(new Claim(ClaimTypes.Name, username));
 
             var identity = new ClaimsIdentity(claims, "jwt");
             return new ClaimsPrincipal(identity);
