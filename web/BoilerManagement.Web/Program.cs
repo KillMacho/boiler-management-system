@@ -1,6 +1,7 @@
 using BoilerManagement.Web.Authentication;
 using BoilerManagement.Web.Components;
 using BoilerManagement.Web.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using MudBlazor.Services;
@@ -15,9 +16,18 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// ── Authorization ─────────────────────────────────────────────────────────────
-// In Blazor Server auth is handled entirely by JwtAuthenticationStateProvider
-// inside the SignalR circuit. No ASP.NET Core auth middleware scheme is needed.
+// ── Authentication & Authorization ────────────────────────────────────────────
+// ASP.NET Core middleware needs a registered IAuthenticationService to handle
+// the HTTP-level authorization challenge on the initial SSR request.
+// The actual JWT auth lives inside the Blazor SignalR circuit via
+// JwtAuthenticationStateProvider — the cookie scheme here only handles the
+// HTTP challenge redirect so we get /login instead of 500.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/access-denied";
+    });
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
@@ -61,6 +71,8 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
