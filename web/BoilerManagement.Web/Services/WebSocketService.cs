@@ -9,11 +9,11 @@ public enum WsConnectionState { Disconnected, Connecting, Connected, Reconnectin
 
 public class WebSocketService(
     TokenStorageService tokenStorage,
+    IHttpClientFactory httpClientFactory,
     ILogger<WebSocketService> logger) : IAsyncDisposable
 {
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _cts;
-    private Task? _receiveTask;
     private readonly Uri _baseUri = new("ws://localhost:8000");
 
     public WsConnectionState State { get; private set; } = WsConnectionState.Disconnected;
@@ -32,6 +32,38 @@ public class WebSocketService(
         await Task.CompletedTask;
     }
 
+    // Returns a fresh access token, refreshing if needed. Returns null if no token available.
+    private async Task<string?> GetFreshTokenAsync()
+    {
+        var token = await tokenStorage.GetAccessTokenAsync();
+        if (!string.IsNullOrEmpty(token)) return token;
+
+        // No access token — try refresh
+        return await TryRefreshAsync();
+    }
+
+    private async Task<string?> TryRefreshAsync()
+    {
+        var refreshToken = await tokenStorage.GetRefreshTokenAsync();
+        if (string.IsNullOrEmpty(refreshToken)) return null;
+        try
+        {
+            var bare = httpClientFactory.CreateClient("bare");
+            var resp = await bare.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest(refreshToken));
+            if (!resp.IsSuccessStatusCode) { await tokenStorage.ClearTokensAsync(); return null; }
+            var body = await resp.Content.ReadFromJsonAsync<RefreshResponse>();
+            if (body is null) { await tokenStorage.ClearTokensAsync(); return null; }
+            await tokenStorage.SetTokensAsync(body.AccessToken, body.RefreshToken);
+            logger.LogInformation("WS: token refreshed successfully");
+            return body.AccessToken;
+        }
+        catch
+        {
+            await tokenStorage.ClearTokensAsync();
+            return null;
+        }
+    }
+
     private async Task RunWithReconnectAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
@@ -39,7 +71,7 @@ public class WebSocketService(
             SetState(WsConnectionState.Connecting);
             try
             {
-                var token = await tokenStorage.GetAccessTokenAsync();
+                var token = await GetFreshTokenAsync();
                 if (string.IsNullOrEmpty(token))
                 {
                     logger.LogWarning("WS: no access token, waiting 5s");
@@ -53,13 +85,19 @@ public class WebSocketService(
                 await _ws.ConnectAsync(uri, ct);
 
                 SetState(WsConnectionState.Connected);
-                logger.LogInformation("WS connected to {Uri}", uri);
+                logger.LogInformation("WS connected");
 
                 await ReceiveLoopAsync(_ws, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 break;
+            }
+            catch (WebSocketException ex) when (ex.Message.Contains("403") || ex.Message.Contains("401"))
+            {
+                // Token rejected — try refreshing before next attempt
+                logger.LogWarning("WS: auth rejected, refreshing token and retrying in 5s");
+                await TryRefreshAsync();
             }
             catch (Exception ex)
             {
