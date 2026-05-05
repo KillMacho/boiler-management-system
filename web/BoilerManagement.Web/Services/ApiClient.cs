@@ -61,4 +61,21 @@ public class ApiClient(
         await AttachTokenAsync();
         return await http.PostAsJsonAsync(path, body, ct);
     }
+
+    public async Task<TResponse?> PutAsync<TRequest, TResponse>(
+        string path, TRequest body, CancellationToken ct = default)
+    {
+        try
+        {
+            await AttachTokenAsync();
+            var resp = await http.PutAsJsonAsync(path, body, ct);
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadFromJsonAsync<TResponse>(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "PUT {Path} failed", path);
+            throw;
+        }
+    }
 }

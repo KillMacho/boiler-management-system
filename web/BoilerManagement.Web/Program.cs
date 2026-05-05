@@ -70,6 +70,13 @@ builder.Services.AddScoped<ApiClient>(sp =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<MonitoringService>();
 builder.Services.AddScoped<WebSocketService>();
+builder.Services.AddScoped<RequestsService>();
+builder.Services.AddScoped<WorkOrdersService>();
+builder.Services.AddScoped<WarehouseService>();
+builder.Services.AddScoped<EquipmentService>();
+builder.Services.AddScoped<MaintenanceService>();
+builder.Services.AddScoped<PersonnelService>();
+builder.Services.AddScoped<AuditService>();
 
 // ── MudBlazor ─────────────────────────────────────────────────────────────────
 builder.Services.AddMudServices(config =>

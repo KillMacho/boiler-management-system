@@ -1,0 +1,151 @@
+@page "/equipment"
+@attribute [Authorize(Roles = "chief_engineer,master,operator")]
+@inject EquipmentService EquipmentService
+
+<PageTitle>Оборудование</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Devices" Class="mr-2" />
+        Оборудование котельных
+    </MudText>
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadDataAsync" Disabled="_loading">
+        Обновить
+    </MudButton>
+</div>
+
+<!-- Фильтры -->
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int?" Label="Котельная" @bind-Value="_filterBoilerId"
+                       @bind-Value:after="LoadDataAsync" Clearable="true">
+                @foreach (var b in _boilers)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)b.Id)">@b.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="string" Label="Статус" @bind-Value="_filterStatus"
+                       @bind-Value:after="LoadDataAsync" Clearable="true">
+                <MudSelectItem Value="@("active")">Активное</MudSelectItem>
+                <MudSelectItem Value="@("decommissioned")">Списано</MudSelectItem>
+                <MudSelectItem Value="@("under_repair")">На ремонте</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudTextField @bind-Value="_search" Placeholder="Поиск по модели, серийному номеру..."
+                          Immediate="true" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" />
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+
+<MudTable Items="_filtered" Loading="_loading" Hover="true" Dense="true" Striped="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Котельная</MudTh>
+        <MudTh>Категория</MudTh>
+        <MudTh>Модель</MudTh>
+        <MudTh>Серийный номер</MudTh>
+        <MudTh>Производитель</MudTh>
+        <MudTh>Установлено</MudTh>
+        <MudTh>Гарантия до</MudTh>
+        <MudTh>Статус</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Id</MudTd>
+        <MudTd>@BoilerName(context.BoilerId)</MudTd>
+        <MudTd>@CategoryName(context.CategoryId)</MudTd>
+        <MudTd><strong>@context.Model</strong></MudTd>
+        <MudTd>@context.SerialNumber</MudTd>
+        <MudTd>@(context.Manufacturer ?? "—")</MudTd>
+        <MudTd>@context.InstallationDate.ToString("dd.MM.yyyy")</MudTd>
+        <MudTd>
+            @if (context.WarrantyUntil.HasValue)
+            {
+                var isExpired = context.WarrantyUntil.Value < DateOnly.FromDateTime(DateTime.Today);
+                <MudText Color="@(isExpired ? Color.Error : Color.Success)">
+                    @context.WarrantyUntil.Value.ToString("dd.MM.yyyy")
+                </MudText>
+            }
+            else
+            {
+                <span>—</span>
+            }
+        </MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@StatusColor(context.Status)" Size="Size.Small">
+                @StatusLabel(context.Status)
+            </MudChip>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudAlert Severity="Severity.Info" Class="ma-2">Оборудование не найдено</MudAlert>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<EquipmentDto> _equipment = [];
+    private List<BoilerDto> _boilers = [];
+    private List<EquipmentCategoryDto> _categories = [];
+    private bool _loading = true;
+    private bool _initialized;
+    private int? _filterBoilerId;
+    private string? _filterStatus;
+    private string _search = "";
+
+    private IEnumerable<EquipmentDto> _filtered => _equipment.Where(e =>
+        (string.IsNullOrEmpty(_filterStatus) || e.Status == _filterStatus) &&
+        (string.IsNullOrEmpty(_search) ||
+         e.Model.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+         e.SerialNumber.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+         (e.Manufacturer?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false)));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        var t1 = EquipmentService.GetBoilersAsync();
+        var t2 = EquipmentService.GetCategoriesAsync();
+        await Task.WhenAll(t1, t2);
+        _boilers = t1.Result;
+        _categories = t2.Result;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _equipment = await EquipmentService.GetAllAsync(boilerId: _filterBoilerId);
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private string BoilerName(int id) => _boilers.FirstOrDefault(b => b.Id == id)?.Name ?? $"#{id}";
+    private string CategoryName(int id) => _categories.FirstOrDefault(c => c.Id == id)?.Name ?? $"#{id}";
+
+    private Color StatusColor(string s) => s switch
+    {
+        "active"         => Color.Success,
+        "under_repair"   => Color.Warning,
+        "decommissioned" => Color.Error,
+        _                => Color.Default,
+    };
+
+    private string StatusLabel(string s) => s switch
+    {
+        "active"         => "Активное",
+        "under_repair"   => "На ремонте",
+        "decommissioned" => "Списано",
+        _                => s,
+    };
+}

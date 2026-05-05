@@ -1,0 +1,167 @@
+@page "/personnel"
+@attribute [Authorize(Roles = "hr_officer,chief_engineer")]
+@inject PersonnelService PersonnelService
+
+<PageTitle>Персонал</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />
+        Управление персоналом
+    </MudText>
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadDataAsync" Disabled="_loading">
+        Обновить
+    </MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Class="mt-2">
+    <!-- Вкладка: Сотрудники -->
+    <MudTabPanel Text="Сотрудники" Icon="@Icons.Material.Filled.Person">
+        <MudPaper Class="pa-3 mt-3 mb-2" Elevation="1">
+            <MudGrid>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="int?" Label="Отдел" @bind-Value="_filterDeptId"
+                               @bind-Value:after="LoadEmployeesAsync" Clearable="true">
+                        @foreach (var d in _departments)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)d.Id)">@d.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" Label="Статус" @bind-Value="_filterEmpStatus"
+                               @bind-Value:after="LoadEmployeesAsync" Clearable="true">
+                        <MudSelectItem Value="@("active")">Активный</MudSelectItem>
+                        <MudSelectItem Value="@("terminated")">Уволен</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="_empSearch" Placeholder="Поиск..."
+                                  Immediate="true" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+        <MudTable Items="_filteredEmployees" Dense="true" Hover="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Таб. номер</MudTh>
+                <MudTh>ФИО</MudTh>
+                <MudTh>Отдел</MudTh>
+                <MudTh>Должность</MudTh>
+                <MudTh>Принят</MudTh>
+                <MudTh>Статус</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.EmployeeNumber</MudTd>
+                <MudTd><strong>@context.FullName</strong></MudTd>
+                <MudTd>@DeptName(context.DepartmentId)</MudTd>
+                <MudTd>@PositionName(context.PositionId)</MudTd>
+                <MudTd>@context.HireDate.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@(context.Status == "active" ? Color.Success : Color.Default)" Size="Size.Small">
+                        @(context.Status == "active" ? "Активный" : "Уволен")
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Сотрудников не найдено</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- Вкладка: Бригады -->
+    <MudTabPanel Text="Бригады" Icon="@Icons.Material.Filled.Group">
+        <MudTable Items="_brigades" Dense="true" Hover="true" Striped="true" Class="mt-3">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Название</MudTh>
+                <MudTh>Бригадир (сотр. ID)</MudTh>
+                <MudTh>Статус</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd><strong>@context.Name</strong></MudTd>
+                <MudTd>@(context.LeaderEmployeeId.HasValue ? LeaderName(context.LeaderEmployeeId.Value) : "—")</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@(context.Status == "active" ? Color.Success : Color.Default)" Size="Size.Small">
+                        @(context.Status == "active" ? "Активна" : "Неактивна")
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Бригад нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<EmployeeDto> _employees = [];
+    private List<BrigadeDto> _brigades = [];
+    private List<DepartmentDto> _departments = [];
+    private List<PositionDto> _positions = [];
+    private bool _loading = true;
+    private bool _initialized;
+    private int? _filterDeptId;
+    private string? _filterEmpStatus;
+    private string _empSearch = "";
+
+    private IEnumerable<EmployeeDto> _filteredEmployees => _employees.Where(e =>
+        string.IsNullOrEmpty(_empSearch) ||
+        e.FullName.Contains(_empSearch, StringComparison.OrdinalIgnoreCase) ||
+        e.EmployeeNumber.Contains(_empSearch, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        var t1 = PersonnelService.GetDepartmentsAsync();
+        var t2 = PersonnelService.GetPositionsAsync();
+        var t3 = PersonnelService.GetBrigadesAsync();
+        await Task.WhenAll(t1, t2, t3);
+        _departments = t1.Result;
+        _positions = t2.Result;
+        _brigades = t3.Result;
+        await LoadEmployeesAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var t1 = PersonnelService.GetDepartmentsAsync();
+        var t2 = PersonnelService.GetPositionsAsync();
+        var t3 = PersonnelService.GetBrigadesAsync();
+        var t4 = PersonnelService.GetEmployeesAsync(departmentId: _filterDeptId, status: _filterEmpStatus);
+        await Task.WhenAll(t1, t2, t3, t4);
+        _departments = t1.Result;
+        _positions = t2.Result;
+        _brigades = t3.Result;
+        _employees = t4.Result;
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadEmployeesAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _employees = await PersonnelService.GetEmployeesAsync(departmentId: _filterDeptId, status: _filterEmpStatus);
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private string DeptName(int id) => _departments.FirstOrDefault(d => d.Id == id)?.Name ?? $"#{id}";
+    private string PositionName(int id) => _positions.FirstOrDefault(p => p.Id == id)?.Name ?? $"#{id}";
+    private string LeaderName(int empId)
+    {
+        var emp = _employees.FirstOrDefault(e => e.Id == empId);
+        return emp?.FullName ?? $"Сотр. #{empId}";
+    }
+}

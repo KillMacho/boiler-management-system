@@ -1,0 +1,216 @@
+@page "/warehouse"
+@attribute [Authorize(Roles = "storekeeper,master,chief_engineer")]
+@inject WarehouseService WarehouseService
+
+<PageTitle>Склад</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-2" />
+        Складское хозяйство
+    </MudText>
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadDataAsync" Disabled="_loading">
+        Обновить
+    </MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Class="mt-2">
+    <!-- Вкладка: Остатки -->
+    <MudTabPanel Text="Остатки" Icon="@Icons.Material.Filled.Inventory">
+        <MudTable Items="_stock" Dense="true" Hover="true" Striped="true" Class="mt-2"
+                  Filter="FilterStock">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_stockSearch" Placeholder="Поиск по ID материала..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Материал ID</MudTh>
+                <MudTh>Склад ID</MudTh>
+                <MudTh>Количество</MudTh>
+                <MudTh>Зарезервировано</MudTh>
+                <MudTh>Доступно</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>@MaterialName(context.MaterialId)</MudTd>
+                <MudTd>@WarehouseName(context.WarehouseId)</MudTd>
+                <MudTd>@context.Quantity</MudTd>
+                <MudTd>@context.ReservedQuantity</MudTd>
+                <MudTd>
+                    <MudText Color="@(context.Quantity - context.ReservedQuantity > 0 ? Color.Success : Color.Error)">
+                        @(context.Quantity - context.ReservedQuantity)
+                    </MudText>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Данных нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- Вкладка: Движения -->
+    <MudTabPanel Text="Движения" Icon="@Icons.Material.Filled.SwapHoriz">
+        <MudTable Items="_movements" Dense="true" Hover="true" Striped="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Материал</MudTh>
+                <MudTh>Склад</MudTh>
+                <MudTh>Тип</MudTh>
+                <MudTh>Количество</MudTh>
+                <MudTh>Наряд</MudTh>
+                <MudTh>Дата</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>@MaterialName(context.MaterialId)</MudTd>
+                <MudTd>@WarehouseName(context.WarehouseId)</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@MovementColor(context.MovementType)" Size="Size.Small">
+                        @MovementLabel(context.MovementType)
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.Quantity</MudTd>
+                <MudTd>@(context.WorkOrderId.HasValue ? $"#{context.WorkOrderId}" : "—")</MudTd>
+                <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Движений нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- Вкладка: Заявки на закупку -->
+    <MudTabPanel Text="Заявки на закупку" Icon="@Icons.Material.Filled.ShoppingCart">
+        <MudTable Items="_purchaseRequests" Dense="true" Hover="true" Striped="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Материал</MudTh>
+                <MudTh>Количество</MudTh>
+                <MudTh>Статус</MudTh>
+                <MudTh>Создана</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>@MaterialName(context.MaterialId)</MudTd>
+                <MudTd>@context.Quantity</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@PurchaseStatusColor(context.Status)" Size="Size.Small">
+                        @context.Status
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Заявок нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- Вкладка: Материалы -->
+    <MudTabPanel Text="Материалы" Icon="@Icons.Material.Filled.Category">
+        <MudTable Items="_materials" Dense="true" Hover="true" Striped="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Название</MudTh>
+                <MudTh>Ед. изм.</MudTh>
+                <MudTh>Штрихкод</MudTh>
+                <MudTh>Мин. остаток</MudTh>
+                <MudTh>Цена</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>@context.Name</MudTd>
+                <MudTd>@context.Unit</MudTd>
+                <MudTd>@(context.Barcode ?? "—")</MudTd>
+                <MudTd>@context.MinStock</MudTd>
+                <MudTd>@context.Price.ToString("N2") ₽</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Материалов нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<MaterialStockDto> _stock = [];
+    private List<MaterialMovementDto> _movements = [];
+    private List<PurchaseRequestDto> _purchaseRequests = [];
+    private List<MaterialDto> _materials = [];
+    private List<WarehouseDto> _warehouses = [];
+    private bool _loading = true;
+    private bool _initialized;
+    private string _stockSearch = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var t1 = WarehouseService.GetStockAsync();
+        var t2 = WarehouseService.GetMovementsAsync();
+        var t3 = WarehouseService.GetPurchaseRequestsAsync();
+        var t4 = WarehouseService.GetMaterialsAsync();
+        var t5 = WarehouseService.GetWarehousesAsync();
+        await Task.WhenAll(t1, t2, t3, t4, t5);
+        _stock = t1.Result;
+        _movements = t2.Result;
+        _purchaseRequests = t3.Result;
+        _materials = t4.Result;
+        _warehouses = t5.Result;
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private bool FilterStock(MaterialStockDto s)
+    {
+        if (string.IsNullOrWhiteSpace(_stockSearch)) return true;
+        return MaterialName(s.MaterialId).Contains(_stockSearch, StringComparison.OrdinalIgnoreCase)
+            || s.MaterialId.ToString().Contains(_stockSearch);
+    }
+
+    private string MaterialName(int id) => _materials.FirstOrDefault(m => m.Id == id)?.Name ?? $"Материал #{id}";
+    private string WarehouseName(int id) => _warehouses.FirstOrDefault(w => w.Id == id)?.Name ?? $"Склад #{id}";
+
+    private Color MovementColor(string t) => t switch
+    {
+        "income"      => Color.Success,
+        "outcome"     => Color.Error,
+        "reserve"     => Color.Warning,
+        "write_off"   => Color.Error,
+        _             => Color.Default,
+    };
+
+    private string MovementLabel(string t) => t switch
+    {
+        "income"    => "Приход",
+        "outcome"   => "Расход",
+        "reserve"   => "Резерв",
+        "write_off" => "Списание",
+        _           => t,
+    };
+
+    private Color PurchaseStatusColor(string s) => s switch
+    {
+        "pending"   => Color.Warning,
+        "approved"  => Color.Info,
+        "ordered"   => Color.Primary,
+        "received"  => Color.Success,
+        "cancelled" => Color.Error,
+        _           => Color.Default,
+    };
+}

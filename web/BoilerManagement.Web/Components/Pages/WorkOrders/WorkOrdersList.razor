@@ -1,0 +1,149 @@
+@page "/work-orders"
+@attribute [Authorize(Roles = "chief_engineer,master,brigade_leader")]
+@inject WorkOrdersService WorkOrdersService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Наряды</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Engineering" Class="mr-2" />
+        Наряды-задания
+    </MudText>
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadDataAsync" Disabled="_loading">
+        Обновить
+    </MudButton>
+</div>
+
+<!-- Фильтр по статусу -->
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudSelect T="string" Label="Статус" @bind-Value="_filterStatus"
+               @bind-Value:after="LoadDataAsync" Style="max-width:250px" Clearable="true">
+        <MudSelectItem Value="@("assigned")">Назначен</MudSelectItem>
+        <MudSelectItem Value="@("in_progress")">В работе</MudSelectItem>
+        <MudSelectItem Value="@("completed")">Завершён</MudSelectItem>
+    </MudSelect>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+
+<MudTable Items="_orders" Loading="_loading" Hover="true" Dense="true" Striped="true"
+          OnRowClick="OnRowClick" T="WorkOrderDto" RowClass="cursor-pointer">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Заявка</MudTh>
+        <MudTh>Бригада</MudTh>
+        <MudTh>Статус</MudTh>
+        <MudTh>Назначен</MudTh>
+        <MudTh>Начат</MudTh>
+        <MudTh>Завершён</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID"><strong>#@context.Id</strong></MudTd>
+        <MudTd DataLabel="Заявка">Заявка #@context.RequestId</MudTd>
+        <MudTd DataLabel="Бригада">Бригада #@context.BrigadeId</MudTd>
+        <MudTd DataLabel="Статус">
+            <MudChip T="string" Color="@StatusColor(context.Status)" Size="Size.Small">
+                @StatusLabel(context.Status)
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Назначен">@context.AssignedAt.ToLocalTime().ToString("dd.MM HH:mm")</MudTd>
+        <MudTd DataLabel="Начат">@(context.StartedAt?.ToLocalTime().ToString("dd.MM HH:mm") ?? "—")</MudTd>
+        <MudTd DataLabel="Завершён">@(context.CompletedAt?.ToLocalTime().ToString("dd.MM HH:mm") ?? "—")</MudTd>
+        <MudTd>
+            @if (context.Status == "assigned")
+            {
+                <div @onclick:stopPropagation="true">
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                               OnClick="@(async () => await StartOrderAsync(context))">
+                        Начать
+                    </MudButton>
+                </div>
+            }
+            else if (context.Status == "in_progress")
+            {
+                <div @onclick:stopPropagation="true">
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success"
+                               OnClick="@(async () => await CompleteOrderAsync(context))">
+                        Завершить
+                    </MudButton>
+                </div>
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudAlert Severity="Severity.Info" Class="ma-2">Нарядов не найдено</MudAlert>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<WorkOrderDto> _orders = [];
+    private bool _loading = true;
+    private bool _initialized;
+    private string? _filterStatus;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _orders = await WorkOrdersService.GetAllAsync(status: _filterStatus);
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<WorkOrderDto> e) =>
+        Nav.NavigateTo($"/work-orders/{e.Item!.Id}");
+
+    private async Task StartOrderAsync(WorkOrderDto order)
+    {
+        var updated = await WorkOrdersService.StartAsync(order.Id);
+        if (updated is not null)
+        {
+            Snackbar.Add($"Наряд #{order.Id} начат", Severity.Success);
+            await LoadDataAsync();
+        }
+        else
+            Snackbar.Add("Не удалось начать наряд", Severity.Error);
+    }
+
+    private async Task CompleteOrderAsync(WorkOrderDto order)
+    {
+        var updated = await WorkOrdersService.CompleteAsync(order.Id);
+        if (updated is not null)
+        {
+            Snackbar.Add($"Наряд #{order.Id} завершён", Severity.Success);
+            await LoadDataAsync();
+        }
+        else
+            Snackbar.Add("Не удалось завершить наряд", Severity.Error);
+    }
+
+    private Color StatusColor(string s) => s switch
+    {
+        "assigned"    => Color.Info,
+        "in_progress" => Color.Warning,
+        "completed"   => Color.Success,
+        _             => Color.Default,
+    };
+
+    private string StatusLabel(string s) => s switch
+    {
+        "assigned"    => "Назначен",
+        "in_progress" => "В работе",
+        "completed"   => "Завершён",
+        _             => s,
+    };
+}

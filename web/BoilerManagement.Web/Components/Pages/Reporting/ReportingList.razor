@@ -1,0 +1,99 @@
+@page "/reporting"
+@attribute [Authorize(Roles = "accountant,chief_engineer")]
+@inject AuditService AuditService
+
+<PageTitle>Отчётность</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+        Регламентированная отчётность
+    </MudText>
+</div>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Раздел регламентированной отчётности. Формирование отчётов осуществляется через API бэкенда.
+    <!-- TODO: Реализовать endpoint /api/v1/reporting/ для генерации отчётов -->
+</MudAlert>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">Персонал</MudText>
+            </div>
+            <MudText Typo="Typo.body2" Class="mb-3">
+                Отчёты по сотрудникам, табелям и расчёту зарплаты
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                       Href="/personnel">
+                Перейти к персоналу
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-2" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6">Склад</MudText>
+            </div>
+            <MudText Typo="Typo.body2" Class="mb-3">
+                Остатки материалов, движения, заявки на закупку
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                       Href="/warehouse">
+                Перейти на склад
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Warning" />
+                <MudText Typo="Typo.h6">Заявки и наряды</MudText>
+            </div>
+            <MudText Typo="Typo.body2" Class="mb-3">
+                Статистика заявок на обслуживание и выполненных нарядов
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning" FullWidth="true"
+                       Href="/requests">
+                Перейти к заявкам
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Build" Class="mr-2" Color="Color.Success" />
+                <MudText Typo="Typo.h6">ТО и обслуживание</MudText>
+            </div>
+            <MudText Typo="Typo.body2" Class="mb-3">
+                Расписания ТО, выполнение регламентов
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                       Href="/maintenance">
+                Перейти к ТО
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" Color="Color.Info" />
+                <MudText Typo="Typo.h6">Аудит действий</MudText>
+            </div>
+            <MudText Typo="Typo.body2" Class="mb-3">
+                Журнал всех действий пользователей в системе
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                       Href="/audit">
+                Перейти к аудиту
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+</MudGrid>

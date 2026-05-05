@@ -1,0 +1,160 @@
+@page "/requests/{Id:int}"
+@attribute [Authorize(Roles = "dispatcher,chief_engineer,master,brigade_leader,operator,storekeeper,accountant")]
+@inject RequestsService RequestsService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Заявка</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_request is null)
+{
+    <MudAlert Severity="Severity.Error">Заявка не найдена</MudAlert>
+}
+else
+{
+    <div class="d-flex align-center justify-space-between mb-4">
+        <MudText Typo="Typo.h5">
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />
+            Заявка @_request.Number
+        </MudText>
+        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="@(() => Nav.NavigateTo("/requests"))">
+            Назад
+        </MudButton>
+    </div>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Основная информация</MudText>
+                <MudSimpleTable Dense="true">
+                    <tbody>
+                        <tr>
+                            <td><strong>Статус</strong></td>
+                            <td>
+                                <MudChip T="string" Color="@StatusColor(_request.Status)" Size="Size.Small">
+                                    @StatusLabel(_request.Status)
+                                </MudChip>
+                            </td>
+                        </tr>
+                        <tr><td><strong>Тип</strong></td><td>@TypeName(_request.TypeId)</td></tr>
+                        <tr><td><strong>Приоритет</strong></td><td>@PriorityName(_request.PriorityId)</td></tr>
+                        <tr><td><strong>Котельная</strong></td><td>@BoilerName(_request.BoilerId)</td></tr>
+                        <tr><td><strong>Источник</strong></td><td>@_request.Source</td></tr>
+                        <tr><td><strong>Создана</strong></td><td>@_request.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td></tr>
+                        @if (_request.ClosedAt.HasValue)
+                        {
+                            <tr><td><strong>Закрыта</strong></td><td>@_request.ClosedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td></tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Описание</MudText>
+                <MudText>@(_request.Description ?? "Нет описания")</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Смена статуса -->
+    <AuthorizeView Roles="dispatcher,chief_engineer,master">
+        <MudPaper Class="pa-4 mt-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Управление статусом</MudText>
+            <div class="d-flex gap-2 flex-wrap">
+                @foreach (var s in AvailableStatuses(_request.Status))
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               OnClick="@(() => ChangeStatusAsync(s.Key))" Disabled="_changingStatus">
+                        @s.Value
+                    </MudButton>
+                }
+            </div>
+        </MudPaper>
+    </AuthorizeView>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private RequestDto? _request;
+    private List<RequestTypeLookupDto> _types = [];
+    private List<RequestPriorityLookupDto> _priorities = [];
+    private List<BoilerLookupDto> _boilers = [];
+    private bool _loading = true;
+    private bool _changingStatus;
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        var t1 = RequestsService.GetTypesAsync();
+        var t2 = RequestsService.GetPrioritiesAsync();
+        var t3 = RequestsService.GetBoilersAsync();
+        var t4 = RequestsService.GetByIdAsync(Id);
+        await Task.WhenAll(t1, t2, t3, t4);
+        _types = t1.Result;
+        _priorities = t2.Result;
+        _boilers = t3.Result;
+        _request = t4.Result;
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task ChangeStatusAsync(string newStatus)
+    {
+        _changingStatus = true;
+        var updated = await RequestsService.ChangeStatusAsync(Id, newStatus);
+        if (updated is not null)
+        {
+            _request = updated;
+            Snackbar.Add($"Статус изменён на «{StatusLabel(newStatus)}»", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Не удалось изменить статус", Severity.Error);
+        }
+        _changingStatus = false;
+        StateHasChanged();
+    }
+
+    private static Dictionary<string, string> AvailableStatuses(string current) => current switch
+    {
+        "new"         => new() { ["assigned"] = "Назначить", ["closed"] = "Закрыть" },
+        "assigned"    => new() { ["in_progress"] = "Начать работу", ["closed"] = "Закрыть" },
+        "in_progress" => new() { ["completed"] = "Завершить" },
+        "completed"   => new() { ["closed"] = "Закрыть" },
+        _             => [],
+    };
+
+    private Color StatusColor(string s) => s switch
+    {
+        "new"         => Color.Default,
+        "assigned"    => Color.Info,
+        "in_progress" => Color.Warning,
+        "completed"   => Color.Success,
+        "closed"      => Color.Default,
+        _             => Color.Default,
+    };
+
+    private string StatusLabel(string s) => s switch
+    {
+        "new"         => "Новая",
+        "assigned"    => "Назначена",
+        "in_progress" => "В работе",
+        "completed"   => "Завершена",
+        "closed"      => "Закрыта",
+        _             => s,
+    };
+
+    private string TypeName(int id) => _types.FirstOrDefault(t => t.Id == id)?.Name ?? id.ToString();
+    private string PriorityName(int id) => _priorities.FirstOrDefault(p => p.Id == id)?.Name ?? id.ToString();
+    private string BoilerName(int id) => _boilers.FirstOrDefault(b => b.Id == id)?.Name ?? id.ToString();
+}

@@ -1,0 +1,147 @@
+@page "/audit"
+@attribute [Authorize(Roles = "chief_engineer,dispatcher")]
+@inject AuditService AuditService
+
+<PageTitle>Аудит</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+        Журнал аудита
+    </MudText>
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadDataAsync" Disabled="_loading">
+        Обновить
+    </MudButton>
+</div>
+
+<!-- Фильтры -->
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" sm="4" md="3">
+            <MudTextField @bind-Value="_filterEntityType" Label="Тип сущности"
+                          Placeholder="request, employee..."
+                          Immediate="false"
+                          OnKeyUp="@(async e => { if (e.Key == "Enter") await LoadDataAsync(); })" />
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudTextField @bind-Value="_filterAction" Label="Действие"
+                          Placeholder="entity_created..."
+                          Immediate="false"
+                          OnKeyUp="@(async e => { if (e.Key == "Enter") await LoadDataAsync(); })" />
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudTextField @bind-Value="_search" Label="Поиск в таблице"
+                          Immediate="true"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" />
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.FilterList"
+                       OnClick="LoadDataAsync" Disabled="_loading" Class="mt-2">
+                Применить фильтр
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+
+<MudTable Items="_filteredLogs" Loading="_loading" Hover="true" Dense="true" Striped="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Время</MudTh>
+        <MudTh>Пользователь</MudTh>
+        <MudTh>Действие</MudTh>
+        <MudTh>Тип сущности</MudTh>
+        <MudTh>ID сущности</MudTh>
+        <MudTh>Детали</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Id</MudTd>
+        <MudTd>@context.Timestamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</MudTd>
+        <MudTd>@(context.UserId.HasValue ? $"#{context.UserId}" : "Система")</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@ActionColor(context.Action)" Size="Size.Small">
+                @ActionLabel(context.Action)
+            </MudChip>
+        </MudTd>
+        <MudTd>@context.EntityType</MudTd>
+        <MudTd>@(context.EntityId ?? "—")</MudTd>
+        <MudTd>
+            @if (!string.IsNullOrEmpty(context.Details))
+            {
+                <MudTooltip Text="@context.Details">
+                    <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                </MudTooltip>
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudAlert Severity="Severity.Info" Class="ma-2">Записей не найдено</MudAlert>
+    </NoRecordsContent>
+</MudTable>
+
+<MudText Typo="Typo.caption" Class="mt-2" Style="color: var(--mud-palette-text-secondary)">
+    Показано записей: @_filteredLogs.Count() из @_logs.Count (лимит: 100)
+</MudText>
+
+@code {
+    private List<AuditLogDto> _logs = [];
+    private bool _loading = true;
+    private bool _initialized;
+    private string? _filterEntityType;
+    private string? _filterAction;
+    private string _search = "";
+
+    private IEnumerable<AuditLogDto> _filteredLogs => string.IsNullOrWhiteSpace(_search)
+        ? _logs
+        : _logs.Where(l =>
+            l.EntityType.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+            l.Action.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+            (l.EntityId?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (l.Details?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _logs = await AuditService.GetLogsAsync(
+            entityType: string.IsNullOrWhiteSpace(_filterEntityType) ? null : _filterEntityType,
+            action: string.IsNullOrWhiteSpace(_filterAction) ? null : _filterAction,
+            limit: 100);
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private Color ActionColor(string a) => a switch
+    {
+        "entity_created"      => Color.Success,
+        "entity_updated"      => Color.Info,
+        "entity_soft_deleted" => Color.Warning,
+        "entity_hard_deleted" => Color.Error,
+        "status_changed"      => Color.Primary,
+        _                     => Color.Default,
+    };
+
+    private string ActionLabel(string a) => a switch
+    {
+        "entity_created"      => "Создание",
+        "entity_updated"      => "Изменение",
+        "entity_soft_deleted" => "Удаление",
+        "entity_hard_deleted" => "Удаление",
+        "status_changed"      => "Смена статуса",
+        _                     => a,
+    };
+}

@@ -1,0 +1,105 @@
+@inject RequestsService RequestsService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Новая заявка
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudSelect T="int" Label="Котельная" @bind-Value="_boilerId" Required="true" Class="mb-3">
+                @foreach (var b in Boilers)
+                {
+                    <MudSelectItem T="int" Value="@b.Id">@b.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="int?" Label="Тип заявки" @bind-Value="_typeId" Clearable="true" Class="mb-3">
+                @foreach (var t in Types)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="int?" Label="Приоритет" @bind-Value="_priorityId" Clearable="true" Class="mb-3">
+                @foreach (var p in Priorities)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)p.Id)">@p.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudTextField T="string" Label="Описание" @bind-Value="_description"
+                          Lines="3" Class="mb-3" MaxLength="2000" />
+        </MudForm>
+
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2">@_error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="SubmitAsync" Disabled="_submitting">
+            @if (_submitting) { <MudProgressCircular Size="Size.Small" Indeterminate="true" /> }
+            else { <span>Создать</span> }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public List<BoilerLookupDto> Boilers { get; set; } = [];
+    [Parameter] public List<RequestTypeLookupDto> Types { get; set; } = [];
+    [Parameter] public List<RequestPriorityLookupDto> Priorities { get; set; } = [];
+
+    private MudForm _form = null!;
+    private int _boilerId;
+    private int? _typeId;
+    private int? _priorityId;
+    private string? _description;
+    private bool _submitting;
+    private string? _error;
+
+    protected override void OnParametersSet()
+    {
+        if (Boilers.Count > 0) _boilerId = Boilers[0].Id;
+    }
+
+    private async Task SubmitAsync()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+        if (_boilerId == 0) { _error = "Выберите котельную"; return; }
+
+        _submitting = true;
+        _error = null;
+        try
+        {
+            var dto = new CreateRequestDto(_boilerId, _description, "manual", _typeId, _priorityId);
+            var result = await RequestsService.CreateAsync(dto);
+            if (result is not null)
+            {
+                Snackbar.Add($"Заявка {result.Request.Number} создана", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                _error = "Не удалось создать заявку";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

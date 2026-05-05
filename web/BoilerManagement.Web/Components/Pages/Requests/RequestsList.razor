@@ -1,0 +1,185 @@
+@page "/requests"
+@attribute [Authorize(Roles = "dispatcher,chief_engineer,master,brigade_leader,operator,storekeeper,accountant")]
+@inject RequestsService RequestsService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Заявки</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />
+        Заявки на обслуживание
+    </MudText>
+    <AuthorizeView Roles="dispatcher,chief_engineer,master,operator">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenCreateDialogAsync">
+            Новая заявка
+        </MudButton>
+    </AuthorizeView>
+</div>
+
+<!-- Фильтры -->
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" sm="4" md="3">
+            <MudSelect T="string" Label="Статус" @bind-Value="_filterStatus"
+                       @bind-Value:after="LoadDataAsync" Clearable="true">
+                <MudSelectItem Value="@("new")">Новая</MudSelectItem>
+                <MudSelectItem Value="@("assigned")">Назначена</MudSelectItem>
+                <MudSelectItem Value="@("in_progress")">В работе</MudSelectItem>
+                <MudSelectItem Value="@("completed")">Завершена</MudSelectItem>
+                <MudSelectItem Value="@("closed")">Закрыта</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudSelect T="int?" Label="Тип" @bind-Value="_filterTypeId"
+                       @bind-Value:after="LoadDataAsync" Clearable="true">
+                @foreach (var t in _types)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudSelect T="int?" Label="Котельная" @bind-Value="_filterBoilerId"
+                       @bind-Value:after="LoadDataAsync" Clearable="true">
+                @foreach (var b in _boilers)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)b.Id)">@b.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="LoadDataAsync" Disabled="_loading">
+                Обновить
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+
+<MudTable Items="_requests" Loading="_loading" Hover="true" Dense="true" Striped="true"
+          OnRowClick="OnRowClick" T="RequestDto" RowClass="cursor-pointer">
+    <HeaderContent>
+        <MudTh>Номер</MudTh>
+        <MudTh>Статус</MudTh>
+        <MudTh>Тип</MudTh>
+        <MudTh>Приоритет</MudTh>
+        <MudTh>Котельная</MudTh>
+        <MudTh>Описание</MudTh>
+        <MudTh>Создана</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Номер"><strong>@context.Number</strong></MudTd>
+        <MudTd DataLabel="Статус">
+            <MudChip T="string" Color="@StatusColor(context.Status)" Size="Size.Small">
+                @StatusLabel(context.Status)
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Тип">@TypeName(context.TypeId)</MudTd>
+        <MudTd DataLabel="Приоритет">@PriorityName(context.PriorityId)</MudTd>
+        <MudTd DataLabel="Котельная">@BoilerName(context.BoilerId)</MudTd>
+        <MudTd DataLabel="Описание">
+            <MudTooltip Text="@context.Description">
+                <span>@Truncate(context.Description, 50)</span>
+            </MudTooltip>
+        </MudTd>
+        <MudTd DataLabel="Создана">@context.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudAlert Severity="Severity.Info" Class="ma-2">Заявок не найдено</MudAlert>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<RequestDto> _requests = [];
+    private List<RequestTypeLookupDto> _types = [];
+    private List<RequestPriorityLookupDto> _priorities = [];
+    private List<BoilerLookupDto> _boilers = [];
+    private bool _loading = true;
+    private bool _initialized;
+
+    private string? _filterStatus;
+    private int? _filterTypeId;
+    private int? _filterBoilerId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        var t1 = RequestsService.GetTypesAsync();
+        var t2 = RequestsService.GetPrioritiesAsync();
+        var t3 = RequestsService.GetBoilersAsync();
+        await Task.WhenAll(t1, t2, t3);
+        _types = t1.Result;
+        _priorities = t2.Result;
+        _boilers = t3.Result;
+        await LoadDataAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _requests = await RequestsService.GetAllAsync(
+            status: _filterStatus,
+            typeId: _filterTypeId,
+            boilerId: _filterBoilerId);
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task OpenCreateDialogAsync()
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(CreateRequestDialog.Boilers), _boilers },
+            { nameof(CreateRequestDialog.Types), _types },
+            { nameof(CreateRequestDialog.Priorities), _priorities },
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<CreateRequestDialog>("Новая заявка", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled)
+            await LoadDataAsync();
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<RequestDto> e) =>
+        Nav.NavigateTo($"/requests/{e.Item!.Id}");
+
+    private Color StatusColor(string s) => s switch
+    {
+        "new"         => Color.Default,
+        "assigned"    => Color.Info,
+        "in_progress" => Color.Warning,
+        "completed"   => Color.Success,
+        "closed"      => Color.Default,
+        _             => Color.Default,
+    };
+
+    private string StatusLabel(string s) => s switch
+    {
+        "new"         => "Новая",
+        "assigned"    => "Назначена",
+        "in_progress" => "В работе",
+        "completed"   => "Завершена",
+        "closed"      => "Закрыта",
+        _             => s,
+    };
+
+    private string TypeName(int id) => _types.FirstOrDefault(t => t.Id == id)?.Name ?? id.ToString();
+    private string PriorityName(int id) => _priorities.FirstOrDefault(p => p.Id == id)?.Name ?? id.ToString();
+    private string BoilerName(int id) => _boilers.FirstOrDefault(b => b.Id == id)?.Name ?? id.ToString();
+
+    private static string Truncate(string? s, int max) =>
+        s is null ? "" : s.Length <= max ? s : s[..max] + "…";
+}

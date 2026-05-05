@@ -1,0 +1,194 @@
+@page "/maintenance"
+@attribute [Authorize(Roles = "chief_engineer,master")]
+@inject MaintenanceService MaintenanceService
+@inject EquipmentService EquipmentService
+
+<PageTitle>Планирование ТО</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Build" Class="mr-2" />
+        Планирование технического обслуживания
+    </MudText>
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadDataAsync" Disabled="_loading">
+        Обновить
+    </MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Class="mt-2">
+    <!-- Вкладка: Ближайшее ТО -->
+    <MudTabPanel Text="Ближайшее ТО" Icon="@Icons.Material.Filled.NotificationImportant">
+        @if (_upcoming.Count > 0)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mt-3 mb-2">
+                @_upcoming.Count регламент(ов) истекают в ближайшие 7 дней
+            </MudAlert>
+        }
+        <MudTable Items="_upcoming" Dense="true" Hover="true" Striped="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Оборудование</MudTh>
+                <MudTh>Тип ТО</MudTh>
+                <MudTh>Следующее ТО</MudTh>
+                <MudTh>Последнее выполнено</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>Оборудование #@context.EquipmentId</MudTd>
+                <MudTd>Тип #@context.MaintenanceTypeId</MudTd>
+                <MudTd>
+                    <MudText Color="Color.Warning">
+                        <strong>@context.NextDueDate.ToString("dd.MM.yyyy")</strong>
+                    </MudText>
+                </MudTd>
+                <MudTd>@(context.LastPerformedAt?.ToLocalTime().ToString("dd.MM.yyyy") ?? "—")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Success" Class="ma-2">Нет просроченных или ближайших ТО</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- Вкладка: Регламенты -->
+    <MudTabPanel Text="Регламенты" Icon="@Icons.Material.Filled.MenuBook">
+        <MudTable Items="_regulations" Dense="true" Hover="true" Striped="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Оборудование</MudTh>
+                <MudTh>Тип ТО</MudTh>
+                <MudTh>Следующее ТО</MudTh>
+                <MudTh>Последнее выполнено</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>Оборудование #@context.EquipmentId</MudTd>
+                <MudTd>Тип #@context.MaintenanceTypeId</MudTd>
+                <MudTd>
+                    @{
+                        var isOverdue = context.NextDueDate < DateOnly.FromDateTime(DateTime.Today);
+                    }
+                    <MudText Color="@(isOverdue ? Color.Error : Color.Default)">
+                        @context.NextDueDate.ToString("dd.MM.yyyy")
+                    </MudText>
+                </MudTd>
+                <MudTd>@(context.LastPerformedAt?.ToLocalTime().ToString("dd.MM.yyyy") ?? "—")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Регламентов нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- Вкладка: Расписания -->
+    <MudTabPanel Text="Расписания" Icon="@Icons.Material.Filled.CalendarMonth">
+        <MudTable Items="_schedules" Dense="true" Hover="true" Striped="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Период с</MudTh>
+                <MudTh>Период по</MudTh>
+                <MudTh>Статус</MudTh>
+                <MudTh>Создано</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>@context.PeriodStart.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd>@context.PeriodEnd.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@ScheduleStatusColor(context.Status)" Size="Size.Small">
+                        @context.Status
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Расписаний нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- Вкладка: Позиции плана -->
+    <MudTabPanel Text="Позиции плана" Icon="@Icons.Material.Filled.ListAlt">
+        <MudTable Items="_planItems" Dense="true" Hover="true" Striped="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Расписание</MudTh>
+                <MudTh>Оборудование</MudTh>
+                <MudTh>Тип ТО</MudTh>
+                <MudTh>Плановая дата</MudTh>
+                <MudTh>Бригада</MudTh>
+                <MudTh>Статус</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Id</MudTd>
+                <MudTd>#@context.ScheduleId</MudTd>
+                <MudTd>Оборудование #@context.EquipmentId</MudTd>
+                <MudTd>Тип #@context.MaintenanceTypeId</MudTd>
+                <MudTd>@context.PlannedDate.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd>@(context.AssignedBrigadeId.HasValue ? $"#{context.AssignedBrigadeId}" : "—")</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@PlanItemStatusColor(context.Status)" Size="Size.Small">
+                        @context.Status
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="ma-2">Позиций нет</MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<MaintenanceRegulationDto> _regulations = [];
+    private List<MaintenanceRegulationDto> _upcoming = [];
+    private List<MaintenanceScheduleDto> _schedules = [];
+    private List<MaintenancePlanItemDto> _planItems = [];
+    private bool _loading = true;
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var t1 = MaintenanceService.GetRegulationsAsync();
+        var t2 = MaintenanceService.GetUpcomingAsync(7);
+        var t3 = MaintenanceService.GetSchedulesAsync();
+        var t4 = MaintenanceService.GetPlanItemsAsync();
+        await Task.WhenAll(t1, t2, t3, t4);
+        _regulations = t1.Result;
+        _upcoming = t2.Result;
+        _schedules = t3.Result;
+        _planItems = t4.Result;
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private Color ScheduleStatusColor(string s) => s switch
+    {
+        "draft"    => Color.Default,
+        "active"   => Color.Success,
+        "archived" => Color.Default,
+        _          => Color.Default,
+    };
+
+    private Color PlanItemStatusColor(string s) => s switch
+    {
+        "planned"  => Color.Default,
+        "approved" => Color.Info,
+        "done"     => Color.Success,
+        _          => Color.Default,
+    };
+}
