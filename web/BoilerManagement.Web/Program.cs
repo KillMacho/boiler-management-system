@@ -63,7 +63,7 @@ builder.Services.AddScoped<ApiClient>(sp =>
     var http = factory.CreateClient("api");
     var tokenStorage = sp.GetRequiredService<TokenStorageService>();
     var logger = sp.GetRequiredService<ILogger<ApiClient>>();
-    return new ApiClient(http, tokenStorage, logger);
+    return new ApiClient(http, factory, tokenStorage, logger);
 });
 
 // ── Application services ──────────────────────────────────────────────────────

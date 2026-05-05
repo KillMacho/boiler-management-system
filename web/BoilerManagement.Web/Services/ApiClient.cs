@@ -1,15 +1,17 @@
+using System.Net;
 using System.Net.Http.Json;
+using BoilerManagement.Web.Services.DTOs;
 
 namespace BoilerManagement.Web.Services;
 
 /// <summary>
 /// Scoped HTTP client for the backend API.
 /// Injects Authorization: Bearer header on every request using the scoped
-/// TokenStorageService — this guarantees we always read the token from the
-/// correct Blazor circuit scope, avoiding the root-scope issue with typed clients.
+/// TokenStorageService. On 401, attempts one silent token refresh, then retries.
 /// </summary>
 public class ApiClient(
     HttpClient http,
+    IHttpClientFactory httpClientFactory,
     TokenStorageService tokenStorage,
     ILogger<ApiClient> logger)
 {
@@ -18,10 +20,30 @@ public class ApiClient(
     private async Task AttachTokenAsync()
     {
         var token = await tokenStorage.GetAccessTokenAsync();
-        if (!string.IsNullOrEmpty(token))
-            http.DefaultRequestHeaders.Authorization = new("Bearer", token);
-        else
-            http.DefaultRequestHeaders.Authorization = null;
+        http.DefaultRequestHeaders.Authorization = !string.IsNullOrEmpty(token)
+            ? new("Bearer", token)
+            : null;
+    }
+
+    private async Task<bool> TryRefreshAsync()
+    {
+        var refreshToken = await tokenStorage.GetRefreshTokenAsync();
+        if (string.IsNullOrEmpty(refreshToken)) return false;
+        try
+        {
+            var bare = httpClientFactory.CreateClient("bare");
+            var resp = await bare.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest(refreshToken));
+            if (!resp.IsSuccessStatusCode) { await tokenStorage.ClearTokensAsync(); return false; }
+            var body = await resp.Content.ReadFromJsonAsync<RefreshResponse>();
+            if (body is null) { await tokenStorage.ClearTokensAsync(); return false; }
+            await tokenStorage.SetTokensAsync(body.AccessToken, body.RefreshToken);
+            return true;
+        }
+        catch
+        {
+            await tokenStorage.ClearTokensAsync();
+            return false;
+        }
     }
 
     public async Task<T?> GetAsync<T>(string path, CancellationToken ct = default)
@@ -29,7 +51,14 @@ public class ApiClient(
         try
         {
             await AttachTokenAsync();
-            return await http.GetFromJsonAsync<T>(path, ct);
+            var resp = await http.GetAsync(path, ct);
+            if (resp.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync())
+            {
+                await AttachTokenAsync();
+                resp = await http.GetAsync(path, ct);
+            }
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
         }
         catch (Exception ex)
         {
@@ -45,8 +74,13 @@ public class ApiClient(
         {
             await AttachTokenAsync();
             var resp = await http.PostAsJsonAsync(path, body, ct);
+            if (resp.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync())
+            {
+                await AttachTokenAsync();
+                resp = await http.PostAsJsonAsync(path, body, ct);
+            }
             resp.EnsureSuccessStatusCode();
-            return await resp.Content.ReadFromJsonAsync<TResponse>(ct);
+            return await resp.Content.ReadFromJsonAsync<TResponse>(cancellationToken: ct);
         }
         catch (Exception ex)
         {
@@ -69,8 +103,13 @@ public class ApiClient(
         {
             await AttachTokenAsync();
             var resp = await http.PutAsJsonAsync(path, body, ct);
+            if (resp.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync())
+            {
+                await AttachTokenAsync();
+                resp = await http.PutAsJsonAsync(path, body, ct);
+            }
             resp.EnsureSuccessStatusCode();
-            return await resp.Content.ReadFromJsonAsync<TResponse>(ct);
+            return await resp.Content.ReadFromJsonAsync<TResponse>(cancellationToken: ct);
         }
         catch (Exception ex)
         {
