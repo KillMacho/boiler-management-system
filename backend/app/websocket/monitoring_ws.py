@@ -63,7 +63,7 @@ manager = ConnectionManager()
 def _verify_token(token: str) -> bool:
     """Return True if token is a valid non-expired access JWT."""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         return payload.get("type") == "access"
     except JWTError:
         return False

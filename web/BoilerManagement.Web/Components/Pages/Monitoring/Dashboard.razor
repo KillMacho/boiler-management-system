@@ -7,6 +7,7 @@
 @inject TokenStorageService TokenStorage
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ILogger<Dashboard> Logger
 @implements IAsyncDisposable
 
 <PageTitle>Мониторинг котельных</PageTitle>
@@ -133,15 +134,23 @@ else
         _                              => "red",
     };
 
-    protected override async Task OnInitializedAsync()
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await RefreshAsync();
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+
+        var token = await TokenStorage.GetAccessTokenAsync();
+        Logger.LogInformation("Dashboard OnAfterRender: token={HasToken}", !string.IsNullOrEmpty(token));
 
         WsService.OnStateChanged    += OnWsStateChanged;
         WsService.OnTelemetryUpdate += OnTelemetryUpdate;
         WsService.OnFullStatus      += OnFullStatus;
 
+        await RefreshAsync();
         await WsService.ConnectAsync();
+        StateHasChanged();
     }
 
     private async Task RefreshAsync()

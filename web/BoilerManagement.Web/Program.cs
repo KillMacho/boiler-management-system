@@ -41,20 +41,29 @@ builder.Services.AddScoped<ProtectedLocalStorage>();
 builder.Services.AddScoped<TokenStorageService>();
 
 // ── HttpClient with auth handler ──────────────────────────────────────────────
-builder.Services.AddScoped<AuthTokenHandler>();
-
-builder.Services.AddHttpClient<ApiClient>(client =>
+// Named clients — handler is resolved from the circuit scope via IServiceProvider
+builder.Services.AddHttpClient("api", client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
-})
-.AddHttpMessageHandler<AuthTokenHandler>();
+});
 
 // Bare client for auth endpoints (no token handler — used during login/refresh)
 builder.Services.AddHttpClient("bare", client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+// ApiClient is Scoped — it holds a long-lived HttpClient and injects the Bearer
+// token itself on every request using the scoped TokenStorageService.
+builder.Services.AddScoped<ApiClient>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var http = factory.CreateClient("api");
+    var tokenStorage = sp.GetRequiredService<TokenStorageService>();
+    var logger = sp.GetRequiredService<ILogger<ApiClient>>();
+    return new ApiClient(http, tokenStorage, logger);
 });
 
 // ── Application services ──────────────────────────────────────────────────────
