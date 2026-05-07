@@ -117,4 +117,24 @@ public class ApiClient(
             throw;
         }
     }
+
+    public async Task DeleteAsync(string path, CancellationToken ct = default)
+    {
+        try
+        {
+            await AttachTokenAsync();
+            var resp = await http.DeleteAsync(path, ct);
+            if (resp.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync())
+            {
+                await AttachTokenAsync();
+                resp = await http.DeleteAsync(path, ct);
+            }
+            resp.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DELETE {Path} failed", path);
+            throw;
+        }
+    }
 }

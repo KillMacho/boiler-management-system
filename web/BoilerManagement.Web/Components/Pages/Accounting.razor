@@ -1,12 +1,347 @@
 @page "/accounting"
 @attribute [Authorize(Roles = "accountant,chief_engineer")]
+@inject AccountingService AccountingService
+@inject ISnackbar Snackbar
 
 <PageTitle>Бухгалтерия</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">
+<div class="d-flex align-center mb-4">
     <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Class="mr-2" />
-    Бухгалтерия
-</MudText>
-<MudAlert Severity="Severity.Info">
-    Будет реализовано на Дне 9: акты, начисления, интеграция с 1С.
-</MudAlert>
+    <MudText Typo="Typo.h5">Бухгалтерия</MudText>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+}
+
+<!-- Зона 1: Карточки-индикаторы -->
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">Отчётов сформировано</MudText>
+            <MudText Typo="Typo.h4">@_reports.Count</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Tertiary">всего в системе</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">Отправлено в ЭДО</MudText>
+            <MudText Typo="Typo.h4">@_reports.Count(r => r.EdoStatus == "accepted")</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Tertiary">принято оператором</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">Передано актов в 1С</MudText>
+            <MudText Typo="Typo.h4">@_totalActsSent</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Tertiary">за все периоды</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">Статус 1С</MudText>
+            <MudText Typo="Typo.h6" Color="@(_onecStatus == "ok" ? Color.Success : Color.Error)">
+                @(_onecStatus == "ok" ? "Доступна" : "Недоступна")
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Tertiary">mock.1С:Предприятие</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Зона 2: Выгрузка в 1С -->
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Class="mr-2" Size="Size.Small" />
+                Передача данных в 1С:Предприятие
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_period"
+                              Label="Период (YYYY-MM)"
+                              Placeholder="2026-04"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.CalendarMonth" />
+            </MudItem>
+            <MudItem xs="12" sm="8" Class="d-flex align-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Send"
+                           OnClick="SendFullPeriodAsync"
+                           Disabled="@(_sending || string.IsNullOrWhiteSpace(_period))"
+                           Class="mb-1">
+                    @if (_sending)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Полная выгрузка периода
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @if (_lastExportResult is not null)
+        {
+            <MudDivider Class="my-3" />
+            <MudAlert Severity="@(_lastExportResult.Success ? Severity.Success : Severity.Warning)" Class="mt-2">
+                <MudText><strong>Период @_lastExportResult.Period</strong></MudText>
+                <MudText>
+                    Актов: @_lastExportResult.ActsSent &nbsp;|&nbsp;
+                    Материалов: @_lastExportResult.MaterialsSent &nbsp;|&nbsp;
+                    Проводок: @_lastExportResult.TransactionsSent &nbsp;|&nbsp;
+                    Строк табеля: @_lastExportResult.TimesheetRowsSent
+                </MudText>
+                @if (_lastExportResult.Errors.Any())
+                {
+                    foreach (var err in _lastExportResult.Errors)
+                    {
+                        <MudText Color="Color.Error">⚠ @err</MudText>
+                    }
+                }
+            </MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+<!-- Зона 3: Регламентированная отчётность -->
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" Size="Size.Small" />
+                Отчётность в контролирующие органы
+            </MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@(() => { _showGenerateForm = !_showGenerateForm; })">
+                @(_showGenerateForm ? "Скрыть" : "Сформировать отчёт")
+            </MudButton>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_showGenerateForm)
+        {
+            <MudPaper Elevation="1" Class="pa-4 mb-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">Новый отчёт</MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="5">
+                        <MudSelect T="string" @bind-Value="_newReportType" Label="Тип отчёта" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("6-NDFL")">6-НДФЛ (квартальный)</MudSelectItem>
+                            <MudSelectItem Value="@("RSV")">РСВ (квартальный)</MudSelectItem>
+                            <MudSelectItem Value="@("4-FSS")">4-ФСС (квартальный)</MudSelectItem>
+                            <MudSelectItem Value="@("SZV-STAZH")">СЗВ-СТАЖ (годовой)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="_newReportPeriod"
+                                      Label="@(_newReportType == "SZV-STAZH" ? "Год (напр: 2025)" : "Квартал (напр: 2026-Q1)")"
+                                      Placeholder="@(_newReportType == "SZV-STAZH" ? "2025" : "2026-Q1")"
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3" Class="d-flex align-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="GenerateReportAsync"
+                                   Disabled="@(_generating || string.IsNullOrWhiteSpace(_newReportPeriod))"
+                                   Class="mb-1">
+                            @if (_generating)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            Сформировать
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        @if (_loadingReports)
+        {
+            <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="mb-2" />
+        }
+
+        <MudTable Items="_reports" Hover="true" Dense="true" Striped="true"
+                  Loading="@_loadingReports" LoadingProgressColor="Color.Secondary">
+            <HeaderContent>
+                <MudTh>Дата</MudTh>
+                <MudTh>Тип</MudTh>
+                <MudTh>Период</MudTh>
+                <MudTh>Размер</MudTh>
+                <MudTh>Статус ЭДО</MudTh>
+                <MudTh>Квитанция</MudTh>
+                <MudTh>Действия</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@(DateTime.TryParse(context.GeneratedAt, out var dt) ? dt.ToString("dd.MM.yyyy HH:mm") : context.GeneratedAt)</MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Info">@context.ReportType</MudChip></MudTd>
+                <MudTd>@context.Period</MudTd>
+                <MudTd>@FormatSize(context.FileSize)</MudTd>
+                <MudTd>
+                    @if (context.EdoStatus == "accepted")
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success">Принят</MudChip>
+                    }
+                    else if (context.EdoStatus is not null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.EdoStatus</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Не отправлен</MudChip>
+                    }
+                </MudTd>
+                <MudTd>
+                    @if (!string.IsNullOrEmpty(context.ReceiptNumber))
+                    {
+                        <MudText Typo="Typo.caption">@context.ReceiptNumber</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">—</MudText>
+                    }
+                </MudTd>
+                <MudTd>
+                    @{
+                        var reportCtx = context;
+                    }
+                    @if (string.IsNullOrEmpty(reportCtx.SubmissionId))
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   OnClick="@(() => SubmitToEdoAsync(reportCtx))"
+                                   Disabled="@_submitting">
+                            Отправить в ЭДО
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Tertiary">@reportCtx.SubmissionId</MudText>
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Отчётов нет. Сформируйте первый отчёт.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private bool _loading = true;
+    private bool _loadingReports = true;
+    private bool _sending = false;
+    private bool _submitting = false;
+    private bool _generating = false;
+    private bool _showGenerateForm = false;
+
+    private string _period = DateTime.Now.ToString("yyyy-MM");
+    private string _onecStatus = "unknown";
+    private int _totalActsSent = 0;
+    private OnecSendPeriodResponse? _lastExportResult;
+
+    private List<ReportDetailDto> _reports = [];
+    private string _newReportType = "6-NDFL";
+    private string _newReportPeriod = $"{DateTime.Now.Year}-Q{(DateTime.Now.Month - 1) / 3 + 1}";
+
+    private bool _initialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+
+        await Task.WhenAll(LoadReportsAsync(), LoadOnecStatusAsync());
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadReportsAsync()
+    {
+        _loadingReports = true;
+        _reports = await AccountingService.GetReportsAsync();
+        _loadingReports = false;
+    }
+
+    private async Task LoadOnecStatusAsync()
+    {
+        _onecStatus = await AccountingService.CheckOnecHealthAsync();
+    }
+
+    private async Task SendFullPeriodAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_period)) return;
+        _sending = true;
+        StateHasChanged();
+
+        var result = await AccountingService.SendPeriodAsync(_period.Trim());
+        _sending = false;
+
+        if (result is null)
+        {
+            Snackbar.Add("Ошибка при выгрузке в 1С", Severity.Error);
+        }
+        else
+        {
+            _lastExportResult = result;
+            _totalActsSent += result.ActsSent;
+            if (result.Success)
+                Snackbar.Add($"Выгружено: {result.ActsSent} актов, {result.MaterialsSent} позиций, {result.TransactionsSent} проводок", Severity.Success);
+            else
+                Snackbar.Add($"Выгрузка с ошибками: {string.Join("; ", result.Errors)}", Severity.Warning);
+        }
+        StateHasChanged();
+    }
+
+    private async Task GenerateReportAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newReportPeriod)) return;
+        _generating = true;
+        StateHasChanged();
+
+        var result = await AccountingService.GenerateReportAsync(_newReportType, _newReportPeriod.Trim());
+        _generating = false;
+
+        if (result is null)
+        {
+            Snackbar.Add("Ошибка при формировании отчёта", Severity.Error);
+        }
+        else
+        {
+            _showGenerateForm = false;
+            Snackbar.Add($"Отчёт {result.ReportType} за {result.Period} сформирован ({FormatSize(result.SizeBytes)})", Severity.Success);
+            await LoadReportsAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async Task SubmitToEdoAsync(ReportDetailDto report)
+    {
+        _submitting = true;
+        StateHasChanged();
+
+        var result = await AccountingService.SubmitReportAsync(report.ReportType, report.Period);
+        _submitting = false;
+
+        if (result is null)
+        {
+            Snackbar.Add("Ошибка при отправке в ЭДО", Severity.Error);
+        }
+        else
+        {
+            Snackbar.Add($"Принят ЭДО. Квитанция: {result.ReceiptNumber}", Severity.Success);
+            await LoadReportsAsync();
+        }
+        StateHasChanged();
+    }
+
+    private static string FormatSize(int bytes) => bytes switch
+    {
+        < 1024        => $"{bytes} Б",
+        < 1024 * 1024 => $"{bytes / 1024} КБ",
+        _             => $"{bytes / (1024 * 1024)} МБ"
+    };
+}

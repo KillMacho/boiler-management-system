@@ -77,6 +77,8 @@ builder.Services.AddScoped<EquipmentService>();
 builder.Services.AddScoped<MaintenanceService>();
 builder.Services.AddScoped<PersonnelService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<AccountingService>();
+builder.Services.AddScoped<SettingsService>();
 
 // ── MudBlazor ─────────────────────────────────────────────────────────────────
 builder.Services.AddMudServices(config =>

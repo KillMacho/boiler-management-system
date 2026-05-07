@@ -1,12 +1,641 @@
 @page "/settings"
 @attribute [Authorize(Roles = "chief_engineer")]
+@inject SettingsService SettingsService
+@inject ISnackbar Snackbar
 
-<PageTitle>Настройки</PageTitle>
+<PageTitle>Настройки системы</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">
+<div class="d-flex align-center mb-4">
     <MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-2" />
-    Настройки системы
-</MudText>
-<MudAlert Severity="Severity.Info">
-    Будет реализовано на Дне 9: пороговые значения, справочники, параметры системы.
-</MudAlert>
+    <MudText Typo="Typo.h5">Настройки системы</MudText>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+}
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+
+    <!-- ══════════════════════ ВКЛАДКА 1: ПОРОГИ ══════════════════════ -->
+    <MudTabPanel Text="Пороги мониторинга" Icon="@Icons.Material.Filled.Tune">
+        <div class="d-flex justify-space-between align-center mb-3">
+            <MudText Typo="Typo.h6">Пороговые значения параметров</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenAddThresholdForm">
+                @(_showThresholdForm && _editingThreshold is null ? "Скрыть" : "Добавить порог")
+            </MudButton>
+        </div>
+
+        @if (_showThresholdForm)
+        {
+            <MudPaper Elevation="3" Class="pa-4 mb-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    @(_editingThreshold is null ? "Новый порог" : $"Редактировать порог #{_editingThreshold.Id}")
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="string" @bind-Value="_thresholdForm.ParameterName"
+                                   Label="Параметр" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("temperature_heat")">Температура подачи</MudSelectItem>
+                            <MudSelectItem Value="@("pressure")">Давление</MudSelectItem>
+                            <MudSelectItem Value="@("co_level")">Уровень CO</MudSelectItem>
+                            <MudSelectItem Value="@("gas_flow")">Поток газа</MudSelectItem>
+                            <MudSelectItem Value="@("water_level")">Уровень воды</MudSelectItem>
+                            <MudSelectItem Value="@("temperature_return")">Температура обратки</MudSelectItem>
+                            <MudSelectItem Value="@("furnace_draft")">Тяга</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField T="int?" @bind-Value="_thresholdForm.BoilerId"
+                                         Label="Котельная (ID, пусто = все)" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="decimal?" @bind-Value="_thresholdForm.MinWarning"
+                                         Label="Min предупр." Variant="Variant.Outlined" Format="F1" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="decimal?" @bind-Value="_thresholdForm.MaxWarning"
+                                         Label="Max предупр." Variant="Variant.Outlined" Format="F1" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="decimal?" @bind-Value="_thresholdForm.MinCritical"
+                                         Label="Min критич." Variant="Variant.Outlined" Format="F1" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="decimal?" @bind-Value="_thresholdForm.MaxCritical"
+                                         Label="Max критич." Variant="Variant.Outlined" Format="F1" />
+                    </MudItem>
+                </MudGrid>
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               OnClick="SaveThresholdAsync"
+                               Disabled="@_savingThreshold">
+                        @if (_savingThreshold) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Сохранить
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => _showThresholdForm = false)">
+                        Отмена
+                    </MudButton>
+                </div>
+            </MudPaper>
+        }
+
+        @if (_loadingThresholds)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
+        }
+        <MudTable Items="_thresholds" Hover="true" Dense="true" Striped="true" Loading="@_loadingThresholds">
+            <HeaderContent>
+                <MudTh>Котельная</MudTh>
+                <MudTh>Параметр</MudTh>
+                <MudTh>Min предупр.</MudTh>
+                <MudTh>Max предупр.</MudTh>
+                <MudTh>Min критич.</MudTh>
+                <MudTh>Max критич.</MudTh>
+                <MudTh>Действия</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@(context.BoilerId.HasValue ? $"Котельная #{context.BoilerId}" : "Все")</MudTd>
+                <MudTd>@GetParameterName(context.ParameterName)</MudTd>
+                <MudTd>@(context.MinWarning?.ToString("F1") ?? "—")</MudTd>
+                <MudTd>@(context.MaxWarning?.ToString("F1") ?? "—")</MudTd>
+                <MudTd>@(context.MinCritical?.ToString("F1") ?? "—")</MudTd>
+                <MudTd>@(context.MaxCritical?.ToString("F1") ?? "—")</MudTd>
+                <MudTd>
+                    @{ var tCtx = context; }
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                   Color="Color.Primary"
+                                   OnClick="@(() => OpenEditThresholdForm(tCtx))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                   Color="Color.Error"
+                                   OnClick="@(() => DeleteThresholdAsync(tCtx))" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Пороги не настроены.</MudText></NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- ══════════════════════ ВКЛАДКА 2: РЕГЛАМЕНТЫ ══════════════════════ -->
+    <MudTabPanel Text="Регламенты ТО" Icon="@Icons.Material.Filled.Build">
+        <MudText Typo="Typo.h6" Class="mb-3">Регламенты технического обслуживания</MudText>
+
+        @if (_loadingRegulations)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
+        }
+        <MudTable Items="_regulations" Hover="true" Dense="true" Striped="true" Loading="@_loadingRegulations">
+            <HeaderContent>
+                <MudTh>Оборудование</MudTh>
+                <MudTh>Тип ТО</MudTh>
+                <MudTh>Периодичность</MudTh>
+                <MudTh>Последнее выполнение</MudTh>
+                <MudTh>Следующее по плану</MudTh>
+                <MudTh>Статус</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>Оборудование #@context.EquipmentId</MudTd>
+                <MudTd>@GetMaintenanceTypeName(context.MaintenanceTypeId)</MudTd>
+                <MudTd>@GetMaintenanceTypePeriodicity(context.MaintenanceTypeId)</MudTd>
+                <MudTd>@(context.LastPerformedAt?.ToString("dd.MM.yyyy") ?? "—")</MudTd>
+                <MudTd>@context.NextDueDate.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd>
+                    @{
+                        var daysLeft = (context.NextDueDate.ToDateTime(TimeOnly.MinValue) - DateTime.Today).Days;
+                    }
+                    @if (daysLeft < 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Просрочено (@(Math.Abs(daysLeft)) дн.)</MudChip>
+                    }
+                    else if (daysLeft <= 7)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Скоро (@daysLeft дн.)</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success">В норме (@daysLeft дн.)</MudChip>
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Регламенты не найдены.</MudText></NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- ══════════════════════ ВКЛАДКА 3: ШАБЛОНЫ ПРОВОДОК ══════════════════════ -->
+    <MudTabPanel Text="Шаблоны проводок" Icon="@Icons.Material.Filled.Receipt">
+        <div class="d-flex justify-space-between align-center mb-3">
+            <MudText Typo="Typo.h6">Бухгалтерские шаблоны проводок</MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenAddTemplateForm">
+                @(_showTemplateForm && _editingTemplate is null ? "Скрыть" : "Добавить шаблон")
+            </MudButton>
+        </div>
+
+        @if (_showTemplateForm)
+        {
+            <MudPaper Elevation="3" Class="pa-4 mb-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    @(_editingTemplate is null ? "Новый шаблон" : "Редактировать шаблон")
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_templateForm.OperationType" Label="Тип операции"
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_templateForm.Description" Label="Описание"
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudTextField @bind-Value="_templateForm.DebitAccount" Label="Дт счёт"
+                                      Variant="Variant.Outlined" Placeholder="20" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudTextField @bind-Value="_templateForm.CreditAccount" Label="Кт счёт"
+                                      Variant="Variant.Outlined" Placeholder="10" />
+                    </MudItem>
+                </MudGrid>
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTemplate">
+                        Сохранить
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => _showTemplateForm = false)">
+                        Отмена
+                    </MudButton>
+                </div>
+            </MudPaper>
+        }
+
+        <MudTable Items="_accountingTemplates" Hover="true" Dense="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Тип операции</MudTh>
+                <MudTh>Дт счёт</MudTh>
+                <MudTh>Кт счёт</MudTh>
+                <MudTh>Описание</MudTh>
+                <MudTh>Действия</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd><strong>@context.OperationType</strong></MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Primary">Дт @context.DebitAccount</MudChip></MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Secondary">Кт @context.CreditAccount</MudChip></MudTd>
+                <MudTd>@context.Description</MudTd>
+                <MudTd>
+                    @{ var tmpl = context; }
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                   OnClick="@(() => OpenEditTemplateForm(tmpl))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                   OnClick="@(() => DeleteTemplate(tmpl))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+
+    <!-- ══════════════════════ ВКЛАДКА 4: ПОЛЬЗОВАТЕЛИ ══════════════════════ -->
+    <MudTabPanel Text="Пользователи" Icon="@Icons.Material.Filled.People">
+        <MudText Typo="Typo.h6" Class="mb-3">Текущий пользователь системы</MudText>
+
+        @if (_currentUser is not null)
+        {
+            <MudPaper Elevation="2" Class="pa-4 mb-4" Style="max-width:500px">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudAvatar Color="Color.Primary" Size="Size.Large" Class="mb-2">
+                            @_currentUser.Username[..1].ToUpper()
+                        </MudAvatar>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.overline" Color="Color.Secondary">Логин</MudText>
+                        <MudText>@_currentUser.Username</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.overline" Color="Color.Secondary">Статус</MudText>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(_currentUser.IsActive ? Color.Success : Color.Error)">
+                            @(_currentUser.IsActive ? "Активен" : "Деактивирован")
+                        </MudChip>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.overline" Color="Color.Secondary">Роли</MudText>
+                        <div>
+                            @foreach (var role in _currentUser.Roles)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mr-1">@role</MudChip>
+                            }
+                        </div>
+                    </MudItem>
+                    @if (_currentUser.EmployeeId.HasValue)
+                    {
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Сотрудник</MudText>
+                            <MudText>#@_currentUser.EmployeeId</MudText>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+        }
+
+        <MudAlert Severity="Severity.Info">
+            Управление пользователями (создание, назначение ролей, деактивация) выполняется через
+            административный интерфейс backend API.
+            Swagger UI: <strong>http://localhost:8000/docs</strong> → раздел <em>auth</em>.
+        </MudAlert>
+    </MudTabPanel>
+
+    <!-- ══════════════════════ ВКЛАДКА 5: СИСТЕМНАЯ ИНФОРМАЦИЯ ══════════════════════ -->
+    <MudTabPanel Text="Системная информация" Icon="@Icons.Material.Filled.Info">
+        <MudText Typo="Typo.h6" Class="mb-3">Сведения о системе</MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Computer" Class="mr-1" Size="Size.Small" />
+                        Версия и конфигурация
+                    </MudText>
+                    <MudSimpleTable Dense="true">
+                        <tbody>
+                            <tr><td><strong>Версия системы</strong></td><td>1.0.0 (Day 10)</td></tr>
+                            <tr><td><strong>Backend API</strong></td><td>http://localhost:8000</td></tr>
+                            <tr><td><strong>Mock 1С</strong></td><td>http://localhost:8080</td></tr>
+                            <tr><td><strong>Mock ЭДО</strong></td><td>http://localhost:8081</td></tr>
+                            <tr><td><strong>Blazor Frontend</strong></td><td>http://localhost:5000</td></tr>
+                            <tr><td><strong>База данных</strong></td><td>SQL Server (MSSQL)</td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-1" Size="Size.Small" />
+                        Статус подключений
+                    </MudText>
+
+                    @if (_loadingHealth)
+                    {
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
+                    }
+
+                    <MudSimpleTable Dense="true">
+                        <tbody>
+                            <tr>
+                                <td><strong>Backend API</strong></td>
+                                <td>@StatusChip(_backendStatus)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>1С:Предприятие (mock)</strong></td>
+                                <td>@StatusChip(_onecStatus)</td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="CheckHealthAsync"
+                               Disabled="@_loadingHealth"
+                               Class="mt-3">
+                        Проверить подключения
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Architecture" Class="mr-1" Size="Size.Small" />
+                        Технологический стек
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Backend</MudText>
+                            <MudText>FastAPI (Python 3.12)</MudText>
+                            <MudText>SQLAlchemy 2.x async</MudText>
+                            <MudText>SQL Server (pyodbc)</MudText>
+                            <MudText>JWT (python-jose)</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Frontend</MudText>
+                            <MudText>Blazor Server (.NET 9)</MudText>
+                            <MudText>MudBlazor 8 UI Kit</MudText>
+                            <MudText>SignalR (WebSocket)</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Интеграции</MudText>
+                            <MudText>Mock 1С:Предприятие</MudText>
+                            <MudText>Mock ЭДО (Контур)</MudText>
+                            <MudText>Симулятор телеметрии</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+</MudTabs>
+
+@code {
+    // ── State ──────────────────────────────────────────────────────────────────
+    private bool _loading = true;
+    private bool _initialized = false;
+
+    // Thresholds
+    private bool _loadingThresholds = true;
+    private bool _showThresholdForm = false;
+    private bool _savingThreshold = false;
+    private List<ThresholdDto> _thresholds = [];
+    private ThresholdDto? _editingThreshold = null;
+    private ThresholdFormModel _thresholdForm = new();
+
+    // Maintenance
+    private bool _loadingRegulations = true;
+    private List<MaintenanceRegulationDto> _regulations = [];
+    private List<MaintenanceTypeDto> _maintenanceTypes = [];
+
+    // Accounting templates (in-memory)
+    private bool _showTemplateForm = false;
+    private AccountingTemplateModel? _editingTemplate = null;
+    private AccountingTemplateModel _templateForm = new();
+    private int _nextTemplateId = 7;
+    private List<AccountingTemplateModel> _accountingTemplates =
+    [
+        new() { Id = 1, OperationType = "Списание материалов на работы",  DebitAccount = "20",    CreditAccount = "10",    Description = "Отпуск материалов в производство" },
+        new() { Id = 2, OperationType = "Реализация работ",               DebitAccount = "62",    CreditAccount = "90.01", Description = "Выручка от оказания услуг" },
+        new() { Id = 3, OperationType = "Списание себестоимости",          DebitAccount = "90.02", CreditAccount = "20",    Description = "Себестоимость реализованных работ" },
+        new() { Id = 4, OperationType = "Начисление зарплаты",             DebitAccount = "20",    CreditAccount = "70",    Description = "Начисление оплаты труда" },
+        new() { Id = 5, OperationType = "Удержание НДФЛ",                  DebitAccount = "70",    CreditAccount = "68",    Description = "Налог на доходы физических лиц" },
+        new() { Id = 6, OperationType = "Начисление страховых взносов",    DebitAccount = "20",    CreditAccount = "69",    Description = "Взносы в ПФР, ФСС, ФОМС" },
+    ];
+
+    // Users
+    private UserInfo? _currentUser;
+
+    // System info
+    private bool _loadingHealth = true;
+    private string _backendStatus = "checking";
+    private string _onecStatus = "checking";
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────────
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+
+        await Task.WhenAll(
+            LoadThresholdsAsync(),
+            LoadRegulationsAsync(),
+            LoadUserAsync(),
+            CheckHealthAsync()
+        );
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadThresholdsAsync()
+    {
+        _loadingThresholds = true;
+        _thresholds = await SettingsService.GetThresholdsAsync();
+        _loadingThresholds = false;
+    }
+
+    private async Task LoadRegulationsAsync()
+    {
+        _loadingRegulations = true;
+        _maintenanceTypes = await SettingsService.GetMaintenanceTypesAsync();
+        _regulations = await SettingsService.GetRegulationsAsync();
+        _loadingRegulations = false;
+    }
+
+    private async Task LoadUserAsync()
+    {
+        _currentUser = await SettingsService.GetCurrentUserAsync();
+    }
+
+    private async Task CheckHealthAsync()
+    {
+        _loadingHealth = true;
+        StateHasChanged();
+
+        var backendTask = SettingsService.CheckBackendHealthAsync();
+        var onecTask    = SettingsService.CheckOnecHealthAsync();
+        await Task.WhenAll(backendTask, onecTask);
+        _backendStatus = backendTask.Result;
+        _onecStatus    = onecTask.Result;
+
+        _loadingHealth = false;
+        StateHasChanged();
+    }
+
+    // ── Thresholds ─────────────────────────────────────────────────────────────
+    private void OpenAddThresholdForm()
+    {
+        _editingThreshold = null;
+        _thresholdForm = new ThresholdFormModel();
+        _showThresholdForm = !_showThresholdForm || _editingThreshold is not null;
+    }
+
+    private void OpenEditThresholdForm(ThresholdDto t)
+    {
+        _editingThreshold = t;
+        _thresholdForm = new ThresholdFormModel
+        {
+            BoilerId      = t.BoilerId,
+            ParameterName = t.ParameterName,
+            MinWarning    = t.MinWarning,
+            MaxWarning    = t.MaxWarning,
+            MinCritical   = t.MinCritical,
+            MaxCritical   = t.MaxCritical,
+        };
+        _showThresholdForm = true;
+    }
+
+    private async Task SaveThresholdAsync()
+    {
+        _savingThreshold = true;
+        var dto = new ThresholdCreateDto(
+            BoilerId:      _thresholdForm.BoilerId,
+            ParameterName: _thresholdForm.ParameterName,
+            MinWarning:    _thresholdForm.MinWarning,
+            MaxWarning:    _thresholdForm.MaxWarning,
+            MinCritical:   _thresholdForm.MinCritical,
+            MaxCritical:   _thresholdForm.MaxCritical);
+
+        if (_editingThreshold is null)
+        {
+            var result = await SettingsService.CreateThresholdAsync(dto);
+            if (result is not null) { Snackbar.Add("Порог создан", Severity.Success); _showThresholdForm = false; await LoadThresholdsAsync(); }
+            else Snackbar.Add("Ошибка создания порога", Severity.Error);
+        }
+        else
+        {
+            var result = await SettingsService.UpdateThresholdAsync(_editingThreshold.Id, dto);
+            if (result is not null) { Snackbar.Add("Порог обновлён", Severity.Success); _showThresholdForm = false; await LoadThresholdsAsync(); }
+            else Snackbar.Add("Ошибка обновления", Severity.Error);
+        }
+        _savingThreshold = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteThresholdAsync(ThresholdDto t)
+    {
+        var ok = await SettingsService.DeleteThresholdAsync(t.Id);
+        if (ok) { Snackbar.Add("Порог удалён", Severity.Success); await LoadThresholdsAsync(); StateHasChanged(); }
+        else Snackbar.Add("Ошибка удаления", Severity.Error);
+    }
+
+    // ── Templates ──────────────────────────────────────────────────────────────
+    private void OpenAddTemplateForm()
+    {
+        _editingTemplate = null;
+        _templateForm = new AccountingTemplateModel();
+        _showTemplateForm = !_showTemplateForm || _editingTemplate is not null;
+    }
+
+    private void OpenEditTemplateForm(AccountingTemplateModel t)
+    {
+        _editingTemplate = t;
+        _templateForm = new AccountingTemplateModel
+        {
+            Id            = t.Id,
+            OperationType = t.OperationType,
+            DebitAccount  = t.DebitAccount,
+            CreditAccount = t.CreditAccount,
+            Description   = t.Description,
+        };
+        _showTemplateForm = true;
+    }
+
+    private void SaveTemplate()
+    {
+        if (_editingTemplate is null)
+        {
+            _templateForm.Id = _nextTemplateId++;
+            _accountingTemplates.Add(new AccountingTemplateModel
+            {
+                Id = _templateForm.Id,
+                OperationType = _templateForm.OperationType,
+                DebitAccount  = _templateForm.DebitAccount,
+                CreditAccount = _templateForm.CreditAccount,
+                Description   = _templateForm.Description,
+            });
+            Snackbar.Add("Шаблон добавлен", Severity.Success);
+        }
+        else
+        {
+            var idx = _accountingTemplates.IndexOf(_editingTemplate);
+            if (idx >= 0)
+            {
+                _accountingTemplates[idx] = new AccountingTemplateModel
+                {
+                    Id = _editingTemplate.Id,
+                    OperationType = _templateForm.OperationType,
+                    DebitAccount  = _templateForm.DebitAccount,
+                    CreditAccount = _templateForm.CreditAccount,
+                    Description   = _templateForm.Description,
+                };
+            }
+            Snackbar.Add("Шаблон обновлён", Severity.Success);
+        }
+        _showTemplateForm = false;
+        StateHasChanged();
+    }
+
+    private void DeleteTemplate(AccountingTemplateModel t)
+    {
+        _accountingTemplates.Remove(t);
+        Snackbar.Add("Шаблон удалён", Severity.Success);
+        StateHasChanged();
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    private static string GetParameterName(string key) => key switch
+    {
+        "temperature_heat"   => "Температура подачи",
+        "pressure"           => "Давление",
+        "co_level"           => "Уровень CO",
+        "gas_flow"           => "Поток газа",
+        "water_level"        => "Уровень воды",
+        "temperature_return" => "Температура обратки",
+        "furnace_draft"      => "Тяга",
+        _                    => key
+    };
+
+    private string GetMaintenanceTypeName(int typeId)
+        => _maintenanceTypes.FirstOrDefault(x => x.Id == typeId)?.Name ?? $"Тип #{typeId}";
+
+    private string GetMaintenanceTypePeriodicity(int typeId)
+    {
+        var t = _maintenanceTypes.FirstOrDefault(x => x.Id == typeId);
+        return t is not null ? $"{t.PeriodicityDays} дн." : "—";
+    }
+
+    private static string StatusChip(string status) => status switch
+    {
+        "ok"          => "✅ Доступен",
+        "unavailable" => "❌ Недоступен",
+        "checking"    => "⏳ Проверка...",
+        _             => $"⚠ {status}"
+    };
+
+    // ── Models ─────────────────────────────────────────────────────────────────
+    private class ThresholdFormModel
+    {
+        public int?    BoilerId      { get; set; }
+        public string  ParameterName { get; set; } = "temperature_heat";
+        public decimal? MinWarning   { get; set; }
+        public decimal? MaxWarning   { get; set; }
+        public decimal? MinCritical  { get; set; }
+        public decimal? MaxCritical  { get; set; }
+    }
+
+    private class AccountingTemplateModel
+    {
+        public int    Id            { get; set; }
+        public string OperationType { get; set; } = "";
+        public string DebitAccount  { get; set; } = "";
+        public string CreditAccount { get; set; } = "";
+        public string Description   { get; set; } = "";
+    }
+}
