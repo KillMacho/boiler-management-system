@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BoilerManagement.Mobile.ViewModels"
+             x:Class="BoilerManagement.Mobile.Pages.LoginPage"
+             x:DataType="vm:LoginViewModel"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{StaticResource Primary}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="32" Spacing="0"
+                             VerticalOptions="Center"
+                             MinimumHeightRequest="500">
+
+            <!-- Logo / header -->
+            <Frame BackgroundColor="White" CornerRadius="48"
+                   WidthRequest="96" HeightRequest="96"
+                   HorizontalOptions="Center" Padding="0"
+                   HasShadow="False">
+                <Label Text="Б" FontSize="48" FontAttributes="Bold"
+                       TextColor="{StaticResource Primary}"
+                       HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Frame>
+
+            <Label Text="Система управления котельными"
+                   TextColor="White" FontSize="16"
+                   HorizontalOptions="Center"
+                   Margin="0,16,0,0"/>
+
+            <Label Text="Вход для бригадиров"
+                   TextColor="#BBDEFB" FontSize="13"
+                   HorizontalOptions="Center"
+                   Margin="0,4,0,32"/>
+
+            <!-- Card -->
+            <Frame BackgroundColor="White" CornerRadius="16"
+                   Padding="24" HasShadow="True">
+                <VerticalStackLayout Spacing="16">
+
+                    <Label Text="Логин" FontSize="12" TextColor="{StaticResource Gray600}"/>
+                    <Entry Placeholder="Введите логин"
+                           Text="{Binding Username}"
+                           Keyboard="Default"
+                           ReturnType="Next"/>
+
+                    <Label Text="Пароль" FontSize="12" TextColor="{StaticResource Gray600}"/>
+                    <Grid ColumnDefinitions="*,48">
+                        <Entry Grid.Column="0"
+                               Placeholder="Введите пароль"
+                               Text="{Binding Password}"
+                               IsPassword="{Binding IsPasswordVisible, Converter={StaticResource InverseBoolConverter}}"
+                               ReturnType="Go"
+                               ReturnCommand="{Binding LoginCommand}"/>
+                        <Button Grid.Column="1"
+                                Text="{Binding IsPasswordVisible, Converter={StaticResource EyeIconConverter}}"
+                                Command="{Binding TogglePasswordVisibilityCommand}"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource Gray500}"
+                                FontSize="18"
+                                Padding="0"/>
+                    </Grid>
+
+                    <Label Text="{Binding ErrorMessage}"
+                           TextColor="{StaticResource Error}"
+                           IsVisible="{Binding ErrorMessage, Converter={StaticResource IsNotEmptyConverter}}"
+                           FontSize="13"/>
+
+                    <Button Text="Войти"
+                            Command="{Binding LoginCommand}"
+                            IsEnabled="{Binding IsNotBusy}"
+                            Margin="0,8,0,0"/>
+
+                    <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                      IsVisible="{Binding IsBusy}"
+                                      HorizontalOptions="Center"
+                                      Color="{StaticResource Primary}"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label Text="Обратитесь к диспетчеру для получения учётных данных"
+                   TextColor="#90CAF9" FontSize="11"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,24,0,0"/>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

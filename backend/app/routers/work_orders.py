@@ -92,6 +92,36 @@ async def get_work_order(work_order_id: int, session: AsyncSession = Depends(get
     return obj
 
 
+@router.get(
+    "/{work_order_id}/checklist",
+    response_model=List[WorkOrderChecklistItemResponse],
+    dependencies=[Depends(RoleChecker(READ_ANY))],
+)
+async def list_checklist(work_order_id: int, session: AsyncSession = Depends(get_db)):
+    from app.models.requests import WorkOrderChecklistItem
+    rows = (await session.execute(
+        select(WorkOrderChecklistItem)
+        .where(WorkOrderChecklistItem.work_order_id == work_order_id)
+        .order_by(WorkOrderChecklistItem.sort_order)
+    )).scalars().all()
+    return list(rows)
+
+
+@router.get(
+    "/{work_order_id}/photos",
+    response_model=List[WorkOrderPhotoResponse],
+    dependencies=[Depends(RoleChecker(READ_ANY))],
+)
+async def list_photos(work_order_id: int, session: AsyncSession = Depends(get_db)):
+    from app.models.requests import WorkOrderPhoto
+    rows = (await session.execute(
+        select(WorkOrderPhoto)
+        .where(WorkOrderPhoto.work_order_id == work_order_id)
+        .order_by(WorkOrderPhoto.uploaded_at.desc())
+    )).scalars().all()
+    return list(rows)
+
+
 @router.post("/{work_order_id}/start", response_model=WorkOrderResponse)
 async def start_work_order(
     work_order_id: int,

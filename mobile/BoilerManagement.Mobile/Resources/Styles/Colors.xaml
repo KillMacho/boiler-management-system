@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Color x:Key="Primary">#1565C0</Color>
+    <Color x:Key="PrimaryDark">#0D47A1</Color>
+    <Color x:Key="PrimaryLight">#42A5F5</Color>
+    <Color x:Key="Secondary">#FF6F00</Color>
+    <Color x:Key="SecondaryDark">#E65100</Color>
+    <Color x:Key="Tertiary">#4CAF50</Color>
+
+    <Color x:Key="Success">#4CAF50</Color>
+    <Color x:Key="Warning">#FF9800</Color>
+    <Color x:Key="Error">#F44336</Color>
+    <Color x:Key="Info">#2196F3</Color>
+
+    <Color x:Key="White">#FFFFFF</Color>
+    <Color x:Key="Black">#000000</Color>
+    <Color x:Key="Gray100">#F5F5F5</Color>
+    <Color x:Key="Gray200">#EEEEEE</Color>
+    <Color x:Key="Gray300">#E0E0E0</Color>
+    <Color x:Key="Gray500">#9E9E9E</Color>
+    <Color x:Key="Gray700">#616161</Color>
+    <Color x:Key="Gray900">#212121</Color>
+
+    <Color x:Key="PageBackground">#F5F5F5</Color>
+    <Color x:Key="CardBackground">#FFFFFF</Color>
+
+</ResourceDictionary>

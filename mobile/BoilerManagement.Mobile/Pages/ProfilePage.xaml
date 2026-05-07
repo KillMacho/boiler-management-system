@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BoilerManagement.Mobile.ViewModels"
+             x:Class="BoilerManagement.Mobile.Pages.ProfilePage"
+             x:DataType="vm:ProfileViewModel"
+             Title="Профиль"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <!-- Avatar + name -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout HorizontalOptions="Center" Spacing="8">
+                    <Frame BackgroundColor="{StaticResource Primary}"
+                           CornerRadius="40" WidthRequest="80" HeightRequest="80"
+                           HorizontalOptions="Center" Padding="0" HasShadow="False">
+                        <Label Text="👷"
+                               FontSize="40"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"/>
+                    </Frame>
+
+                    <Label Text="{Binding User.Username}"
+                           FontSize="20" FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="{StaticResource Gray900}"/>
+
+                    <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                       IsVisible="{Binding IsBusy}"
+                                       Color="{StaticResource Primary}"
+                                       HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Info card -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Информация" FontSize="16" FontAttributes="Bold"/>
+
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto"
+                          ColumnSpacing="12" RowSpacing="8">
+                        <Label Grid.Row="0" Grid.Column="0" Text="Логин"
+                               TextColor="{StaticResource Gray500}" FontSize="13"/>
+                        <Label Grid.Row="0" Grid.Column="1"
+                               Text="{Binding User.Username}"
+                               FontSize="13"/>
+
+                        <Label Grid.Row="1" Grid.Column="0" Text="Статус"
+                               TextColor="{StaticResource Gray500}" FontSize="13"/>
+                        <Label Grid.Row="1" Grid.Column="1"
+                               Text="{Binding UserRoles}"
+                               FontSize="13"/>
+
+                        <Label Grid.Row="2" Grid.Column="0" Text="Сервер"
+                               TextColor="{StaticResource Gray500}" FontSize="13"/>
+                        <Label Grid.Row="2" Grid.Column="1"
+                               Text="{Binding ServerUrl}"
+                               FontSize="13" TextColor="{StaticResource Gray700}"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Logout -->
+            <Button Text="Выйти из аккаунта"
+                    Command="{Binding LogoutCommand}"
+                    Style="{StaticResource DangerButton}"
+                    Margin="0,8,0,0"/>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

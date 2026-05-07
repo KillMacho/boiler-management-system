@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BoilerManagement.Mobile.ViewModels"
+             xmlns:models="clr-namespace:BoilerManagement.Mobile.Models"
+             x:Class="BoilerManagement.Mobile.Pages.WorkOrdersListPage"
+             x:DataType="vm:WorkOrdersListViewModel"
+             Title="Мои наряды"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Filter toggle -->
+        <HorizontalStackLayout Grid.Row="0" BackgroundColor="White"
+                               Padding="12,8" Spacing="8">
+            <Label Text="Только активные" VerticalOptions="Center"
+                   FontSize="14" TextColor="{StaticResource Gray700}"/>
+            <Switch IsToggled="{Binding ShowOnlyActive}"
+                    OnColor="{StaticResource Primary}"
+                    VerticalOptions="Center"/>
+        </HorizontalStackLayout>
+
+        <!-- List -->
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding WorkOrders}"
+                            SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <Label Text="{Binding EmptyMessage}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           Margin="0,48,0,0"
+                           TextColor="{StaticResource Gray500}"
+                           FontSize="16"/>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:WorkOrderDisplayItem">
+                        <Frame Style="{StaticResource CardFrame}"
+                               Margin="12,6">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WorkOrdersListViewModel}}, Path=OpenDetailCommand}"
+                                    CommandParameter="{Binding .}"/>
+                            </Frame.GestureRecognizers>
+
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Text="{Binding WorkOrder.Id, StringFormat='Наряд #{0}'}"
+                                       FontSize="16" FontAttributes="Bold"
+                                       TextColor="{StaticResource Gray900}"/>
+
+                                <Frame Grid.Row="0" Grid.Column="1"
+                                       BackgroundColor="{Binding WorkOrder.Status, Converter={StaticResource StatusColorConverter}}"
+                                       CornerRadius="8" Padding="8,4" HasShadow="False">
+                                    <Label Text="{Binding WorkOrder.Status, Converter={StaticResource StatusLabelConverter}}"
+                                           TextColor="White" FontSize="12" FontAttributes="Bold"/>
+                                </Frame>
+
+                                <Label Grid.Row="1" Grid.ColumnSpan="2"
+                                       Text="{Binding Request.Description}"
+                                       TextColor="{StaticResource Gray700}"
+                                       FontSize="14"
+                                       LineBreakMode="TailTruncation"
+                                       MaxLines="2"
+                                       Margin="0,4,0,0"/>
+
+                                <Label Grid.Row="2" Grid.ColumnSpan="2"
+                                       Text="{Binding WorkOrder.AssignedAt, StringFormat='{0:dd.MM.yyyy HH:mm}'}"
+                                       TextColor="{StaticResource Gray500}"
+                                       FontSize="12"
+                                       Margin="0,6,0,0"/>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+
+        <ActivityIndicator Grid.RowSpan="2"
+                           IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           Color="{StaticResource Primary}"/>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="BoilerManagement.Mobile.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:pages="clr-namespace:BoilerManagement.Mobile.Pages"
+    Shell.FlyoutBehavior="Disabled">
+
+    <!-- Login (no tab bar) -->
+    <ShellContent
+        Route="login"
+        ContentTemplate="{DataTemplate pages:LoginPage}"
+        Shell.NavBarIsVisible="False" />
+
+    <!-- Main area with tabs -->
+    <TabBar Route="main">
+        <Tab Title="Наряды" Icon="icon_list.png" x:Name="tabWorkOrders">
+            <ShellContent
+                Route="workorders"
+                ContentTemplate="{DataTemplate pages:WorkOrdersListPage}" />
+        </Tab>
+        <Tab Title="Профиль" Icon="icon_person.png" x:Name="tabProfile">
+            <ShellContent
+                Route="profile"
+                ContentTemplate="{DataTemplate pages:ProfilePage}" />
+        </Tab>
+    </TabBar>
+
+</Shell>

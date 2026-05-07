@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BoilerManagement.Mobile.ViewModels"
+             xmlns:models="clr-namespace:BoilerManagement.Mobile.Models"
+             x:Class="BoilerManagement.Mobile.Pages.WorkOrderDetailPage"
+             x:DataType="vm:WorkOrderDetailViewModel"
+             Title="{Binding Title}"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="12" Spacing="0">
+
+                <!-- Status card -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="{Binding WorkOrder.Id, StringFormat='Наряд #{0}'}"
+                                   FontSize="18" FontAttributes="Bold"/>
+                            <Label Text="{Binding Request.Description}"
+                                   TextColor="{StaticResource Gray700}"
+                                   FontSize="14" LineBreakMode="WordWrap"/>
+                            <Label Text="{Binding WorkOrder.AssignedAt, StringFormat='Назначен: {0:dd.MM.yyyy HH:mm}'}"
+                                   TextColor="{StaticResource Gray500}" FontSize="12"/>
+                        </VerticalStackLayout>
+                        <Frame Grid.Column="1"
+                               BackgroundColor="{Binding WorkOrder.Status, Converter={StaticResource StatusColorConverter}}"
+                               CornerRadius="8" Padding="8,4" HasShadow="False"
+                               VerticalOptions="Start">
+                            <Label Text="{Binding WorkOrder.Status, Converter={StaticResource StatusLabelConverter}}"
+                                   TextColor="White" FontSize="12" FontAttributes="Bold"/>
+                        </Frame>
+                    </Grid>
+                </Frame>
+
+                <!-- Checklist -->
+                <Frame Style="{StaticResource CardFrame}" Margin="0,0,0,8">
+                    <VerticalStackLayout Spacing="0">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                            <Label Grid.Column="0" Text="Чек-лист"
+                                   FontSize="16" FontAttributes="Bold"/>
+                            <Label Grid.Column="1" Text="{Binding ChecklistProgress}"
+                                   TextColor="{StaticResource Primary}"
+                                   FontSize="14" FontAttributes="Bold"/>
+                        </Grid>
+
+                        <CollectionView ItemsSource="{Binding ChecklistItems}"
+                                        SelectionMode="None">
+                            <CollectionView.EmptyView>
+                                <Label Text="Нет пунктов чек-листа"
+                                       TextColor="{StaticResource Gray500}"
+                                       FontSize="13" Margin="0,8,0,0"/>
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:ChecklistItemViewModel">
+                                    <Grid ColumnDefinitions="Auto,*" Padding="0,6" ColumnSpacing="12">
+                                        <CheckBox Grid.Column="0"
+                                                  IsChecked="{Binding IsCompleted}"
+                                                  Color="{StaticResource Primary}">
+                                            <CheckBox.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WorkOrderDetailViewModel}}, Path=ToggleChecklistItemCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                            </CheckBox.GestureRecognizers>
+                                        </CheckBox>
+                                        <Label Grid.Column="1"
+                                               Text="{Binding Description}"
+                                               VerticalOptions="Center"
+                                               FontSize="14"
+                                               TextDecorations="{Binding IsCompleted, Converter={StaticResource CheckedTextDecorationConverter}}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Photos -->
+                <Frame Style="{StaticResource CardFrame}" Margin="0,0,0,8">
+                    <VerticalStackLayout Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Фотоотчёт"
+                                   FontSize="16" FontAttributes="Bold"/>
+                            <Button Grid.Column="1"
+                                    Text="📷 Снять"
+                                    Command="{Binding TakePhotoCommand}"
+                                    IsEnabled="{Binding IsNotBusy}"
+                                    FontSize="13"
+                                    Padding="10,6"
+                                    CornerRadius="8"/>
+                        </Grid>
+
+                        <ActivityIndicator IsRunning="{Binding IsUploadingPhoto}"
+                                           IsVisible="{Binding IsUploadingPhoto}"
+                                           Color="{StaticResource Primary}"
+                                           HorizontalOptions="Center"/>
+
+                        <CollectionView ItemsSource="{Binding Photos}"
+                                        SelectionMode="None">
+                            <CollectionView.EmptyView>
+                                <Label Text="Нет фотографий"
+                                       TextColor="{StaticResource Gray500}"
+                                       FontSize="13"/>
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemsLayout>
+                                <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="4" VerticalItemSpacing="4"/>
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:PhotoDto">
+                                    <Frame BackgroundColor="{StaticResource Gray200}"
+                                           CornerRadius="8" Padding="0" HasShadow="False"
+                                           HeightRequest="80">
+                                        <Label Text="📸"
+                                               FontSize="28"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"/>
+                                    </Frame>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Frame>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Action buttons -->
+        <VerticalStackLayout Grid.Row="1" Padding="12,8" Spacing="8"
+                             BackgroundColor="White">
+
+            <Button Text="▶ Начать работу"
+                    Command="{Binding StartWorkCommand}"
+                    IsVisible="{Binding CanStart}"
+                    IsEnabled="{Binding IsNotBusy}"
+                    Style="{StaticResource SuccessButton}"/>
+
+            <Button Text="✓ Завершить наряд"
+                    Command="{Binding CompleteWorkCommand}"
+                    IsVisible="{Binding CanComplete}"
+                    IsEnabled="{Binding IsNotBusy}"/>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               IsVisible="{Binding IsBusy}"
+                               Color="{StaticResource Primary}"
+                               HorizontalOptions="Center"/>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
