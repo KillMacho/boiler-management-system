@@ -4,6 +4,7 @@ POST /api/v1/telemetry/ is unauthenticated for now (TODO Day 5: API key).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -15,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import AsyncSessionLocal, get_db
 from app.dependencies.auth import RoleChecker
 from app.models.telemetry import Telemetry
 from app.schemas.telemetry import TelemetryResponse
@@ -94,10 +95,15 @@ async def _ingest_one(session: AsyncSession, payload: TelemetryIn) -> TelemetryA
     )
     session.add(record)
     try:
+        await session.flush()  # get the auto-generated id without full commit yet
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         # Duplicate (boiler_id, timestamp) — idempotent ingest.
         await session.rollback()
+        logger.warning(
+            "Duplicate telemetry (boiler_id=%s, timestamp=%s): %s",
+            payload.boiler_id, timestamp, e,
+        )
         existing = (await session.execute(
             select(Telemetry).where(
                 Telemetry.boiler_id == payload.boiler_id,
@@ -108,7 +114,12 @@ async def _ingest_one(session: AsyncSession, payload: TelemetryIn) -> TelemetryA
             id=existing.id, boiler_id=existing.boiler_id, timestamp=existing.timestamp,
             status=existing.status, breaches=[], auto_request_id=None,
         )
-    await session.refresh(record)
+    except Exception as e:
+        await session.rollback()
+        logger.exception(
+            "Failed to insert telemetry for boiler_id=%s: %s", payload.boiler_id, e,
+        )
+        raise
 
     # Auto-request escalation (separate transaction)
     auto_request_id: Optional[int] = None
@@ -184,14 +195,19 @@ async def post_telemetry(
 @router.post("/batch", response_model=List[TelemetryAccepted], status_code=status.HTTP_201_CREATED)
 async def post_telemetry_batch(
     items: List[TelemetryIn],
-    session: AsyncSession = Depends(get_db),
 ):
     if len(items) > 1000:
         raise bad_request("batch too large (max 1000)")
-    out = []
-    for it in items:
-        out.append(await _ingest_one(session, it))
-    return out
+
+    # Process in parallel using separate sessions (avoid contention)
+    async def process_item(payload: TelemetryIn) -> TelemetryAccepted:
+        async with AsyncSessionLocal() as session:
+            return await _ingest_one(session, payload)
+
+    return await asyncio.gather(
+        *[process_item(it) for it in items],
+        return_exceptions=False,  # raise on first error
+    )
 
 
 @router.get("/{boiler_id}/latest", response_model=Optional[TelemetryResponse], dependencies=[Depends(RoleChecker(READ_ANY))])

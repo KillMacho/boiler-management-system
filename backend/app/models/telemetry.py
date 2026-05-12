@@ -30,7 +30,7 @@ class Telemetry(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False)
 
     boiler: Mapped["Boiler"] = relationship(
-        back_populates="telemetry", lazy="selectin"
+        back_populates="telemetry", lazy="raise"  # avoid eager loading; use selectinload in queries if needed
     )
 
 

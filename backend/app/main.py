@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
+import logging.handlers
 from pathlib import Path
+import traceback
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,6 +38,22 @@ from app import models  # noqa: F401
 
 logger = logging.getLogger("main")
 
+# Configure detailed error logging to file
+_log_dir = Path("logs")
+_log_dir.mkdir(exist_ok=True)
+_file_handler = logging.handlers.RotatingFileHandler(
+    _log_dir / "database_errors.log",
+    maxBytes=10 * 1024 * 1024,  # 10 MB
+    backupCount=5,
+)
+_file_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+)
+logging.getLogger().addHandler(_file_handler)
+
 app = FastAPI(
     title=settings.app_name,
     description="Информационная система управления котельной установкой — REST API",
@@ -62,13 +80,32 @@ app.middleware("http")(access_log_middleware)
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
-    logger.exception("Database error on %s %s", request.method, request.url.path)
+    tb_str = traceback.format_exc()
+    logger.error(
+        "Database error on %s %s\nException: %s\n%s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+        tb_str,
+    )
+    # Log the originating SQL if available
+    if hasattr(exc, "statement"):
+        logger.error("Failed SQL: %s", exc.statement)
+    if hasattr(exc, "orig"):
+        logger.error("Database driver error: %s", exc.orig)
     return JSONResponse(status_code=500, content={"detail": "Database error"})
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    tb_str = traceback.format_exc()
+    logger.error(
+        "Unhandled error on %s %s\nException: %s\n%s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+        tb_str,
+    )
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 

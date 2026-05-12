@@ -29,3 +29,7 @@ venv/
 bin/
 obj/
 *.user
+
+# Logs
+logs/
+*.log

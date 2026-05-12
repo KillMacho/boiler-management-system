@@ -15,8 +15,10 @@ engine = create_async_engine(
     settings.sqlalchemy_async_url,
     echo=settings.app_debug and False,  # set True for SQL log
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=20,          # bumped from 10 for concurrent telemetry
+    max_overflow=30,       # bumped from 20
+    pool_timeout=30.0,     # explicit timeout instead of default 30s
+    pool_recycle=3600,     # recycle connections every 1h (avoid stale connections)
 )
 
 AsyncSessionLocal = async_sessionmaker(

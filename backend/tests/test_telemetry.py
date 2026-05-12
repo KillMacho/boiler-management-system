@@ -1,6 +1,7 @@
 """Telemetry intake tests: normal, critical threshold breach, deduplication."""
 from __future__ import annotations
 
+import asyncio
 import pytest
 from httpx import AsyncClient
 
@@ -130,3 +131,35 @@ async def test_telemetry_history(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_telemetry_15_requests(client: AsyncClient) -> None:
+    """Stress test: 15 parallel POST requests (simulating burst from simulator)."""
+    # Use same boiler_id for all, different temps, staggered timestamps
+    from datetime import datetime, timedelta, timezone
+    base_time = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    payloads = [
+        {
+            **NORMAL_PAYLOAD,
+            "boiler_id": BOILER_ID,
+            "temperature_heat": 70.0 + (i * 0.1),
+            "timestamp": (base_time + timedelta(milliseconds=i)).isoformat(),  # ISO string
+        }
+        for i in range(15)
+    ]
+
+    async def send_one(payload: dict) -> tuple[int, str]:
+        resp = await client.post("/api/v1/telemetry/", json=payload)
+        return resp.status_code, resp.json().get("status", "error")
+
+    results = await asyncio.gather(*[send_one(p) for p in payloads])
+
+    # All 15 requests must succeed
+    assert len(results) == 15, f"Expected 15 results, got {len(results)}"
+    for i, (status_code, status_str) in enumerate(results):
+        assert status_code == 201, f"Request {i}: Expected 201, got {status_code}"
+        assert status_str in ("normal", "warning", "critical"), f"Request {i}: Invalid status '{status_str}'"
+
+
