@@ -12,6 +12,7 @@ from app.models.requests import RequestPriority, RequestType
 logger = logging.getLogger("reference_cache")
 
 
+# Кеш типов и приоритетов заявок: загружается один раз при старте, не меняется в рантайме
 class ReferenceCache:
     request_types: Dict[str, int] = {}
     request_types_by_id: Dict[int, str] = {}
@@ -25,6 +26,7 @@ class ReferenceCache:
 
     @classmethod
     async def warmup(cls, session: AsyncSession) -> None:
+        # Заполняем двусторонние словари name<->id для быстрого поиска без БД
         rt = (await session.execute(select(RequestType))).scalars().all()
         cls.request_types = {row.name: row.id for row in rt}
         cls.request_types_by_id = {row.id: row.name for row in rt}

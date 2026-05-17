@@ -11,6 +11,7 @@ from decimal import Decimal
 from typing import Any
 
 
+# Кастомный сериализатор: Decimal → str (без потери точности), datetime → ISO-строка
 def _default(value: Any) -> Any:
     if isinstance(value, Decimal):
         return str(value)  # str — точность не теряется (в отличие от float)

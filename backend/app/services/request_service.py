@@ -23,6 +23,7 @@ from app.utils.errors import bad_request, conflict, not_found
 logger = logging.getLogger("request_service")
 
 # ── classification ────────────────────────────────────────────────────────────
+# Ключевые слова для автоматического определения типа заявки по тексту описания
 _AVARIA_PATTERNS = re.compile(
     r"авари|не\s+работает|не\s+греет|тече|возгор|задымл|пожар|взрыв",
     re.IGNORECASE,
@@ -59,6 +60,7 @@ def compute_priority_name(type_name: str) -> str:
 
 
 # ── state machine ─────────────────────────────────────────────────────────────
+# Граф допустимых переходов статуса заявки; смена вне графа → 409 Conflict
 VALID_TRANSITIONS: dict[str, set[str]] = {
     "new": {"assigned", "cancelled", "needs_manual_assignment"},
     "needs_manual_assignment": {"assigned", "cancelled"},
@@ -303,6 +305,7 @@ async def create_auto_request(
     threshold_kind: str,
 ) -> Optional[Request]:
     """Create an emergency request from monitoring. Deduplicates by open Авария."""
+    # Дедупликация: не создаём новую заявку если аварийная уже открыта
     existing = await find_open_avaria_for_boiler(session, boiler_id)
     if existing is not None:
         logger.debug(
@@ -387,7 +390,7 @@ async def _handle_act_generated(
     if existing is not None:
         return  # Act already exists
 
-    # Calculate total_amount from outcome movements for this work order
+    # Считаем сумму акта из фактических списаний материалов по наряду
     from app.models.warehouse import MaterialMovement, Material
     from sqlalchemy import func as sqlfunc
 

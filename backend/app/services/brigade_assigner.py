@@ -32,7 +32,7 @@ class BrigadeAssigner(ABC):
 
 class SmartBrigadeAssigner(BrigadeAssigner):
     async def assign(self, session: AsyncSession, request: Request) -> Optional[Brigade]:
-        # 1. Required qualification IDs for this request type
+        # Шаг 1: определяем, какие квалификации требуются для данного типа заявки
         req_rows = await session.execute(
             select(WorkTypeQualification.qualification_id).where(
                 WorkTypeQualification.request_type_id == request.type_id
@@ -40,7 +40,7 @@ class SmartBrigadeAssigner(BrigadeAssigner):
         )
         required_qual_ids: set[int] = {r[0] for r in req_rows.fetchall()}
 
-        # 2. All non-inactive brigades
+        # Шаг 2: берём все активные бригады (не inactive)
         brig_rows = await session.execute(
             select(Brigade).where(Brigade.status != "inactive")
         )
@@ -49,7 +49,7 @@ class SmartBrigadeAssigner(BrigadeAssigner):
             logger.warning("no brigades in system for request_id=%s", request.id)
             return None
 
-        # 3. Filter to free brigades (no assigned/in_progress work orders)
+        # Шаг 3: исключаем занятые бригады (есть активный наряд)
         free_brigades: list[Brigade] = []
         for brigade in all_brigades:
             active_count = (
@@ -67,7 +67,7 @@ class SmartBrigadeAssigner(BrigadeAssigner):
             logger.warning("all brigades busy for request_id=%s", request.id)
             return None
 
-        # 4. Filter by qualification coverage (subset check)
+        # Шаг 4: бригада проходит только если её члены покрывают все нужные квалификации
         if required_qual_ids:
             qualified: list[Brigade] = []
             for brigade in free_brigades:
@@ -93,7 +93,7 @@ class SmartBrigadeAssigner(BrigadeAssigner):
             )
             return None
 
-        # 5. Rank by 30-day load; lowest wins
+        # Шаг 5: выбираем наименее загруженную бригаду за последние 30 дней
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         loads: dict[int, int] = {}
         for brigade in qualified:

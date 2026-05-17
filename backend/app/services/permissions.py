@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import List
 
+# Полный список 9 ролей системы — используется при регистрации и валидации
 ALL_ROLES: List[str] = [
     "dispatcher",
     "chief_engineer",
@@ -15,6 +16,7 @@ ALL_ROLES: List[str] = [
     "employee",
 ]
 
+# Группы доступа: каждая константа используется в RoleChecker конкретного роутера
 ALL_ADMIN: List[str] = ["chief_engineer", "dispatcher"]
 
 WORK_ORDER_WRITE: List[str] = ALL_ADMIN + ["master", "brigade_leader"]

@@ -23,6 +23,7 @@ from app.schemas.users import RoleResponse
 from app.schemas.warehouse import MaterialCategoryResponse
 from app.services.permissions import READ_ANY
 
+# Все lookup-эндпоинты доступны любой аутентифицированной роли — только чтение
 router = APIRouter(
     prefix="/api/v1/lookups",
     tags=["lookups"],
@@ -30,6 +31,7 @@ router = APIRouter(
 )
 
 
+# Универсальный помощник для полного чтения справочной таблицы без пагинации
 async def _list_all(session: AsyncSession, model):
     return list((await session.execute(select(model).order_by(model.id))).scalars().all())
 

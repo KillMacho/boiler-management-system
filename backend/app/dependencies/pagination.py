@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from fastapi import Query
 
 
+# Параметры пагинации: skip/limit передаются в каждый list-эндпоинт через Depends
 @dataclass
 class PaginationParams:
     skip: int
@@ -19,6 +20,7 @@ def get_pagination(
     return PaginationParams(skip=skip, limit=limit)
 
 
+# Флаг для включения «удалённых» (мягко) записей в выборку
 def get_include_deleted(
     include_deleted: bool = Query(
         False,

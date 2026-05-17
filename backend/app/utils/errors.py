@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException, status
 
+# Фабричные функции позволяют поднимать HTTP-ошибки одной строкой из любого сервиса
+
 
 def not_found(entity: str, entity_id: object | None = None) -> HTTPException:
     detail = f"{entity} not found" if entity_id is None else f"{entity} {entity_id} not found"

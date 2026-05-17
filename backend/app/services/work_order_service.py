@@ -72,14 +72,14 @@ async def complete(
     wo.status = "completed"
     wo.completed_at = _now()
 
-    # Write off reserved materials
+    # Автоматически списываем все зарезервированные материалы при завершении наряда
     from app.services.warehouse_service import write_off_for_work_order
 
     lines_written = await write_off_for_work_order(
         session, work_order_id=work_order_id, user_id=user_id
     )
 
-    # Advance parent request to work_completed
+    # Переводим родительскую заявку в work_completed, если она ещё in_progress
     request = await session.get(Request, wo.request_id)
     if request and request.status == "in_progress":
         from app.services.request_service import VALID_TRANSITIONS
@@ -169,6 +169,7 @@ async def add_photo(
     return photo
 
 
+# Возвращает наряды для мобильного приложения бригадира — только его бригады
 async def list_my_brigade_work_orders(
     session: AsyncSession, *, brigade_ids: List[int], skip: int, limit: int
 ) -> List[WorkOrder]:

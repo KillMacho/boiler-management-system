@@ -39,7 +39,7 @@ from app import models  # noqa: F401
 
 logger = logging.getLogger("main")
 
-# Configure detailed error logging to file
+# Ротируемый файловый лог для детального разбора ошибок БД (не выводим в stdout)
 _log_dir = Path("logs")
 _log_dir.mkdir(exist_ok=True)
 _file_handler = logging.handlers.RotatingFileHandler(
@@ -66,6 +66,7 @@ app = FastAPI(
 
 # ── Middleware ────────────────────────────────────────────────────────────────
 
+# CORS открыт для фронтенда и мобильного приложения; список origins берётся из .env
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins or ["*"],
@@ -79,6 +80,7 @@ app.middleware("http")(access_log_middleware)
 
 # ── Exception handlers ────────────────────────────────────────────────────────
 
+# Перехватываем ошибки SQLAlchemy отдельно — логируем SQL и ошибку драйвера
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
     tb_str = traceback.format_exc()
@@ -97,6 +99,7 @@ async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JS
     return JSONResponse(status_code=500, content={"detail": "Database error"})
 
 
+# Общий обработчик — не даём raw exception'у просочиться клиенту
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     tb_str = traceback.format_exc()
@@ -114,6 +117,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 @app.on_event("startup")
 async def startup() -> None:
+    # Прогреваем кеш справочников и создаём папку для фото нарядов
     async with AsyncSessionLocal() as session:
         await reference_cache.warmup(session)
     Path("uploads/work_orders").mkdir(parents=True, exist_ok=True)

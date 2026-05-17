@@ -24,8 +24,10 @@ from app.services.permissions import ALL_ADMIN
 logger = logging.getLogger("reporting")
 router = APIRouter(prefix="/api/v1/reporting", tags=["reporting"])
 
+# Допустимые типы регуляторных отчётов
 ReportTypeStr = Literal["6-NDFL", "RSV", "4-FSS", "SZV-STAZH"]
 
+# Паттерны периодов: квартальные (2026-Q1) и годовые (2026 для СЗВ-СТАЖ)
 _QUARTER_RE = re.compile(r"^\d{4}-Q[1-4]$")
 _YEAR_RE = re.compile(r"^\d{4}$")
 
@@ -144,7 +146,7 @@ async def submit_report(
     """Generate (if not yet) and submit XML report to EDO operator."""
     _validate_period(payload.report_type, payload.period)
 
-    # Generate fresh report
+    # Генерируем свежий XML и отправляем в ЭДО
     result = await _generate(session, payload.report_type, payload.period)
 
     # Submit to EDO
@@ -213,6 +215,7 @@ async def get_report(
         raise HTTPException(404, detail="Report not found")
 
     # Refresh EDO status if submitted
+    # Если отчёт уже отправлен — обновляем статус из ЭДО (ошибка не критична)
     if report.submission_id:
         try:
             status_resp = await edo_client.check_status(report.submission_id)

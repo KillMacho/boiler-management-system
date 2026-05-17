@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
 
 from app.config import settings
 
+# Пул соединений увеличен для параллельной обработки телеметрии
 engine = create_async_engine(
     settings.sqlalchemy_async_url,
     echo=settings.app_debug and False,  # set True for SQL log
@@ -21,6 +22,7 @@ engine = create_async_engine(
     pool_recycle=3600,     # recycle connections every 1h (avoid stale connections)
 )
 
+# expire_on_commit=False: объекты остаются доступны после commit без повторного запроса
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
@@ -34,5 +36,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
         except Exception:
+            # При любой ошибке откатываем транзакцию, чтобы не оставлять грязное состояние
             await session.rollback()
             raise

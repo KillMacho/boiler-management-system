@@ -10,6 +10,7 @@ from fastapi import Request, Response
 logger = logging.getLogger("access")
 
 
+# Логирует каждый HTTP-запрос: метод, путь, статус и время выполнения в мс
 async def access_log_middleware(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:

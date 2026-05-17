@@ -26,6 +26,7 @@ class EmailService:
         self.smtp_from = s.smtp_from_email
         self.smtp_from_name = s.smtp_from_name
 
+    # Формируем MIME-письмо с текстовым и HTML-альтернативными частями
     def _build_message(
         self,
         to: str,
@@ -81,6 +82,7 @@ class EmailService:
             logger.error("Failed to send email to %s: %s", to, exc)
             return False
 
+    # Массовая рассылка: отправляем по одному письму каждому адресату и собираем статистику
     async def send_bulk(
         self,
         recipients: list[str],

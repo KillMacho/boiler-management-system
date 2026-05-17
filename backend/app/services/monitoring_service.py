@@ -15,6 +15,7 @@ from app.services import audit_service, request_service
 
 logger = logging.getLogger("monitoring_service")
 
+# Полный список параметров, которые проверяются на превышение порогов
 PARAMETER_NAMES = (
     "temperature_heat",
     "pressure",
@@ -25,7 +26,7 @@ PARAMETER_NAMES = (
     "furnace_draft",
 )
 
-# severity ranking for combining many breaches into one overall status
+# Числовой ранг тяжести нужен, чтобы взять максимум из множества нарушений
 _SEVERITY_ORDER = {"normal": 0, "warning": 1, "critical": 2}
 _TELEMETRY_STATUS = {0: "normal", 1: "warning", 2: "critical"}
 _DASHBOARD_STATUS = {0: "green", 1: "yellow", 2: "red"}
@@ -75,7 +76,7 @@ async def _load_thresholds(
     rows = (await session.execute(stmt)).scalars().all()
     out: Dict[str, Threshold] = {}
     for row in rows:
-        # specific overrides general
+        # Загружаем пороги: специфичные для котельной перекрывают общие
         existing = out.get(row.parameter_name)
         if existing is None or (existing.boiler_id is None and row.boiler_id is not None):
             out[row.parameter_name] = row
@@ -104,7 +105,7 @@ async def evaluate(
     dashboard = _DASHBOARD_STATUS[severity]
     result = EvalResult(overall=overall, dashboard_status=dashboard, breaches=breaches)
 
-    # update cache regardless of severity
+    # Сохраняем снимок в кеш при любом статусе — дашборд опрашивает только кеш
     StatusCache.put(
         boiler_id,
         {
@@ -119,7 +120,7 @@ async def evaluate(
         },
     )
 
-    # auto-request on first critical breach (request_service handles dedup)
+    # При критическом нарушении автоматически создаём аварийную заявку (дедупликация внутри)
     if auto_create_request and overall == "critical":
         critical_breach = next((b for b in breaches if b.kind == "critical"), None)
         if critical_breach is not None:
@@ -164,6 +165,7 @@ class StatusCache:
 
     @classmethod
     def put(cls, boiler_id: int, snapshot: Dict[str, Any]) -> None:
+        # Атомарная замена словаря — безопасно для asyncio (нет GIL-опасных рейсов)
         cls._store = {**cls._store, boiler_id: snapshot}
 
     @classmethod

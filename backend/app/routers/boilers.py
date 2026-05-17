@@ -29,6 +29,7 @@ from app.utils.errors import conflict, not_found
 
 router = APIRouter(prefix="/api/v1", tags=["boilers"])
 
+# Мягкое удаление котельных и оборудования переводит в статус 'decommissioned'
 boiler_crud = CRUDBase[Boiler, BoilerCreate, BoilerUpdate](
     Boiler, soft_delete_status="decommissioned"
 )
@@ -237,6 +238,7 @@ async def create_passport(
 ):
     if payload.equipment_id != equipment_id:
         raise conflict("payload.equipment_id mismatch with URL")
+    # Один паспорт на единицу оборудования — повторная попытка → 409 Conflict
     existing = (await session.execute(
         select(EquipmentPassport).where(EquipmentPassport.equipment_id == equipment_id)
     )).scalar_one_or_none()

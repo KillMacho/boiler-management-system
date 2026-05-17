@@ -41,6 +41,7 @@ from app.utils.errors import not_found
 
 router = APIRouter(prefix="/api/v1", tags=["maintenance"])
 
+# Все сущности ТО используют жёсткое удаление (soft_delete_status=None)
 type_crud = CRUDBase[MaintenanceType, MaintenanceTypeCreate, MaintenanceTypeUpdate](MaintenanceType, soft_delete_status=None)
 reg_crud = CRUDBase[MaintenanceRegulation, MaintenanceRegulationCreate, MaintenanceRegulationUpdate](MaintenanceRegulation, soft_delete_status=None)
 sched_crud = CRUDBase[MaintenanceSchedule, MaintenanceScheduleCreate, MaintenanceScheduleUpdate](MaintenanceSchedule, soft_delete_status=None)

@@ -8,6 +8,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
+# Все параметры приложения читаются из .env при старте и кешируются через lru_cache
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
     smtp_from_email: str = "noreply@boiler-service.ru"
     smtp_from_name: str = "Котельный сервис"
 
+    # Разбиваем строку-перечисление origins из .env в список (pydantic сам не разбивает)
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
     def _split_origins(cls, v):
@@ -77,6 +79,7 @@ class Settings(BaseSettings):
         """
         from urllib.parse import quote_plus
 
+        # Собираем ODBC-строку подключения и кодируем её для URL
         odbc_str = (
             f"DRIVER={{{self.db_driver}}};"
             f"SERVER={self.db_host};"
@@ -89,6 +92,7 @@ class Settings(BaseSettings):
         return f"mssql+aioodbc:///?odbc_connect={quote_plus(odbc_str)}"
 
 
+# Синглтон настроек — повторные вызовы get_settings() не перечитывают .env
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]

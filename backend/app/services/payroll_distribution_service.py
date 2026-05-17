@@ -28,6 +28,7 @@ _jinja = Environment(
     autoescape=select_autoescape(["html"]),
 )
 
+# Словарь для человекочитаемого отображения месяца в заголовке письма
 _MONTH_NAMES = {
     1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
     5: "Май", 6: "Июнь", 7: "Июль", 8: "Август",
@@ -51,7 +52,7 @@ async def _load_payslip_data(
     year_str, month_str = period_code.split("-")
     year, month = int(year_str), int(month_str)
     period_start = date(year, month, 1)
-    # Last day of month
+    # Вычисляем последний день месяца для граничных условий запроса
     if month == 12:
         period_end = date(year + 1, 1, 1)
     else:
@@ -132,7 +133,7 @@ async def distribute_payslips(
 
     Returns summary: {"sent": N, "failed": M, "skipped": K, "errors": [...]}
     """
-    # Build employee query
+    # Отбираем активных сотрудников с включёнными email-уведомлениями
     stmt = (
         select(Employee)
         .join(EmployeeContact, Employee.id == EmployeeContact.employee_id)

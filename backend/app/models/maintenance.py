@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.personnel import Brigade
 
 
+# Тип ТО (ежемесячное, ежеквартальное и т.д.) с периодичностью в днях
 class MaintenanceType(Base):
     __tablename__ = "maintenance_types"
 
@@ -29,6 +30,7 @@ class MaintenanceType(Base):
     )
 
 
+# Регламент ТО: привязывает конкретное оборудование к виду обслуживания и дате
 class MaintenanceRegulation(Base):
     __tablename__ = "maintenance_regulations"
 
@@ -50,6 +52,7 @@ class MaintenanceRegulation(Base):
     )
 
 
+# График ТО охватывает период (например, квартал) и содержит набор плановых позиций
 class MaintenanceSchedule(Base):
     __tablename__ = "maintenance_schedules"
 

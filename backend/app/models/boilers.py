@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from app.models.ml import MLPrediction
 
 
+# Котельная — главная сущность; к ней привязано оборудование, телеметрия, заявки
 class Boiler(Base):
     __tablename__ = "boilers"
 
@@ -28,6 +29,7 @@ class Boiler(Base):
     commissioning_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False)
 
+    # selectin загружает оборудование и пороги вместе с котельной (нужны на дашборде)
     equipment: Mapped[List["Equipment"]] = relationship(
         back_populates="boiler", lazy="selectin"
     )
@@ -45,6 +47,7 @@ class Boiler(Base):
     )
 
 
+# Категория оборудования (котёл, насос, горелка и т.д.) — справочник
 class EquipmentCategory(Base):
     __tablename__ = "equipment_categories"
 
@@ -57,6 +60,7 @@ class EquipmentCategory(Base):
     )
 
 
+# Единица оборудования, привязанная к конкретной котельной
 class Equipment(Base):
     __tablename__ = "equipment"
 
@@ -87,6 +91,7 @@ class Equipment(Base):
     )
 
 
+# Паспорт оборудования хранит произвольные техпаспортные данные в виде JSON-строки
 class EquipmentPassport(Base):
     __tablename__ = "equipment_passports"
 

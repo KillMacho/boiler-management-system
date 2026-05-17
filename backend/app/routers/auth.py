@@ -21,6 +21,7 @@ from app.services import auth_service
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+# Преобразует ORM-объект User в ответную схему UserInfo (без пароля)
 def _user_info(user: User) -> UserInfo:
     return UserInfo(
         id=user.id,
@@ -50,6 +51,7 @@ async def login(
         )
 
     roles = user.role_names
+    # Выдаём пару токенов: короткий access и долгий refresh
     access_token, access_expires = auth_service.create_access_token(
         user.id, user.username, roles
     )
@@ -149,6 +151,7 @@ async def me(user: User = Depends(get_current_user)) -> UserInfo:
     summary="Флаги разрешений текущего пользователя (для UI)",
 )
 async def me_permissions(user: User = Depends(get_current_user)) -> dict:
+    # Возвращает булевы флаги для управления видимостью кнопок в UI
     from app.services.permissions import (
         AUDIT_READ,
         BOILER_WRITE,

@@ -16,6 +16,7 @@ CreateSchemaT = TypeVar("CreateSchemaT", bound=BaseModel)
 UpdateSchemaT = TypeVar("UpdateSchemaT", bound=BaseModel)
 
 
+# Универсальный CRUD-хелпер; soft_delete_status=None означает жёсткое удаление
 class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
     def __init__(
         self,
@@ -45,6 +46,7 @@ class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
         extra_filters: Optional[Sequence] = None,
     ) -> List[ModelT]:
         stmt: Select = select(self.model)
+        # По умолчанию фильтруем «удалённые» записи (со статусом soft_delete_status)
         if (
             self.has_status
             and not include_deleted
@@ -77,6 +79,7 @@ class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
     async def update(
         self, session: AsyncSession, obj: ModelT, payload: UpdateSchemaT
     ) -> ModelT:
+        # Применяем только явно переданные поля (exclude_unset=True)
         for field, value in payload.model_dump(exclude_unset=True).items():
             setattr(obj, field, value)
         await session.commit()
@@ -86,6 +89,7 @@ class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
     async def soft_delete(
         self, session: AsyncSession, obj: ModelT
     ) -> ModelT:
+        # Если у модели нет статуса — удаляем физически
         if not self.has_status or self.soft_delete_status is None:
             await session.delete(obj)
             await session.commit()

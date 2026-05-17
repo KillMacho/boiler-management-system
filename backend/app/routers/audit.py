@@ -15,6 +15,7 @@ from app.models.users import AuditLog
 from app.schemas.users import AuditLogResponse
 from app.services.permissions import AUDIT_READ
 
+# Доступ к журналу аудита ограничен ролями из AUDIT_READ (только администраторы)
 router = APIRouter(
     prefix="/api/v1/audit",
     tags=["audit"],
@@ -32,6 +33,7 @@ async def list_audit(
     date_to: Optional[datetime] = Query(None),
     session: AsyncSession = Depends(get_db),
 ):
+    # Все фильтры опциональны; записи сортируются от новых к старым
     stmt = select(AuditLog)
     if user_id is not None:
         stmt = stmt.where(AuditLog.user_id == user_id)

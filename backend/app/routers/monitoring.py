@@ -41,6 +41,7 @@ async def dashboard_status(session: AsyncSession = Depends(get_db)):
     for b in boilers:
         snap = cache.get(b.id)
         if snap:
+            # Берём данные из in-memory кеша (обновляется при каждом POST телеметрии)
             out.append(
                 BoilerStatus(
                     boiler_id=b.id,

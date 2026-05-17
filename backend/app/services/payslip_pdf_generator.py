@@ -23,7 +23,7 @@ from reportlab.platypus import (
 
 logger = logging.getLogger("payslip_pdf")
 
-# Try to register a Cyrillic-capable font; fall back to Helvetica if unavailable.
+# Ищем кириллический шрифт в static/fonts; если не найден — используем встроенный Helvetica
 _FONT_NAME = "Helvetica"
 _FONT_NAME_BOLD = "Helvetica-Bold"
 
@@ -61,6 +61,7 @@ class DeductionItem:
     amount: float
 
 
+# Данные для формирования расчётного листка одного сотрудника
 @dataclass
 class PayslipData:
     employee_id: int
@@ -82,6 +83,7 @@ class PayslipData:
     def total_deducted(self) -> float:
         return sum(d.amount for d in self.deductions)
 
+    # Сумма к выплате: начислено минус удержания
     @property
     def net_pay(self) -> float:
         return self.total_accrued - self.total_deducted

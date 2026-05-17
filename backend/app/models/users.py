@@ -24,6 +24,7 @@ class Role(Base):
     )
 
 
+# Пользователь системы; может быть привязан к сотруднику (employee_id)
 class User(Base):
     __tablename__ = "users"
 
@@ -51,6 +52,7 @@ class User(Base):
         back_populates="user", lazy="select"
     )
 
+    # Удобный список строк-ролей — используется в RoleChecker и JWT payload
     @property
     def role_names(self) -> List[str]:
         return [assoc.role.name for assoc in self.role_associations if assoc.role]
@@ -72,6 +74,7 @@ class UserRole(Base):
     )
 
 
+# Журнал аудита: фиксирует каждое значимое действие пользователя или системы
 class AuditLog(Base):
     __tablename__ = "audit_log"
 

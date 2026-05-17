@@ -66,6 +66,7 @@ def _naive_utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+# Основная функция приёма точки телеметрии: оценка порогов → запись → WS-broadcast
 async def _ingest_one(session: AsyncSession, payload: TelemetryIn) -> TelemetryAccepted:
     if payload.boiler_id <= 0:
         raise bad_request("boiler_id must be positive")
@@ -75,7 +76,7 @@ async def _ingest_one(session: AsyncSession, payload: TelemetryIn) -> TelemetryA
 
     parameters = _to_param_dict(payload)
 
-    # Evaluate first (so we know status before insert)
+    # Сначала оцениваем пороги, чтобы записать статус вместе с точкой (до commit)
     eval_result = await monitoring_service.evaluate(
         session, boiler_id=payload.boiler_id, parameters=parameters,
         auto_create_request=False,  # do it after telemetry is committed
@@ -199,7 +200,7 @@ async def post_telemetry_batch(
     if len(items) > 1000:
         raise bad_request("batch too large (max 1000)")
 
-    # Process in parallel using separate sessions (avoid contention)
+    # Каждая точка обрабатывается в отдельной сессии параллельно — без конкуренции за соединение
     async def process_item(payload: TelemetryIn) -> TelemetryAccepted:
         async with AsyncSessionLocal() as session:
             return await _ingest_one(session, payload)

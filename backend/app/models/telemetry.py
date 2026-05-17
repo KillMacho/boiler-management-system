@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.boilers import Boiler
 
 
+# Запись телеметрии от котельной; BigInteger из-за большого объёма данных
 class Telemetry(Base):
     __tablename__ = "telemetry"
 
@@ -27,6 +28,7 @@ class Telemetry(Base):
     water_level: Mapped[Optional[Decimal]] = mapped_column(Numeric(6, 2))
     temperature_return: Mapped[Optional[Decimal]] = mapped_column(Numeric(6, 2))
     furnace_draft: Mapped[Optional[Decimal]] = mapped_column(Numeric(8, 3))
+    # status: normal | warning | critical — выставляется сервисом мониторинга при приёме
     status: Mapped[str] = mapped_column(String(20), nullable=False)
 
     boiler: Mapped["Boiler"] = relationship(
@@ -34,6 +36,7 @@ class Telemetry(Base):
     )
 
 
+# Порог параметра: boiler_id=NULL означает общий порог для всех котельных
 class Threshold(Base):
     __tablename__ = "thresholds"
 

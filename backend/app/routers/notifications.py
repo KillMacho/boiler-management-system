@@ -22,6 +22,7 @@ from app.services.permissions import ALL_ADMIN
 
 router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
+# Рассылку расчётных листков разрешаем не только администраторам, но и финансовому персоналу
 _FINANCE_ROLES = ALL_ADMIN + ["accountant", "hr_officer"]
 
 
@@ -38,6 +39,7 @@ class DistributePayslipsRequest(BaseModel):
     department_id: Optional[int] = None
     employee_ids: Optional[list[int]] = None
 
+    # Валидация формата периода — защита от некорректных данных на уровне схемы
     @field_validator("period_code")
     @classmethod
     def validate_period(cls, v: str) -> str:

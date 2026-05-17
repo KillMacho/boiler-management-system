@@ -16,6 +16,7 @@ from app.services.permissions import ALL_ADMIN
 
 router = APIRouter(prefix="/api/v1/integration", tags=["integration / 1C"])
 
+# Регулярное выражение для валидации формата периода YYYY-MM
 _PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
@@ -84,6 +85,7 @@ async def export_xml_for_onec(
     """
     if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", period):
         raise HTTPException(status_code=400, detail="period must be YYYY-MM")
+    # Диспетчеризация по типу данных: выбираем нужный метод экспортёра
     exporter = OneCXMLExporter(session)
     if data_type == "Акты":
         path = await exporter.export_acts_for_period(period)

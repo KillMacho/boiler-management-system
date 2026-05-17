@@ -57,6 +57,7 @@ from app.utils.errors import conflict, not_found
 
 router = APIRouter(prefix="/api/v1", tags=["personnel"])
 
+# Сотрудники и бригады используют мягкое удаление (terminated / inactive)
 employee_crud = CRUDBase[Employee, EmployeeCreate, EmployeeUpdate](Employee, soft_delete_status="terminated")
 brigade_crud = CRUDBase[Brigade, BrigadeCreate, BrigadeUpdate](Brigade, soft_delete_status="inactive")
 department_crud = CRUDBase[Department, DepartmentCreate, DepartmentUpdate](Department, soft_delete_status=None)
@@ -178,7 +179,7 @@ async def list_brigades(
     )
 
 
-# Must be BEFORE /{brigade_id} to avoid "free" being treated as an int path param.
+# Маршрут /free должен быть ВЫШЕ /{brigade_id}, иначе FastAPI примет "free" за целое число
 @router.get("/brigades/free", response_model=List[BrigadeResponse], dependencies=[Depends(RoleChecker(READ_ANY))])
 async def list_free_brigades(session: AsyncSession = Depends(get_db)):
     """Return brigades that are active and have no assigned/in_progress work orders."""

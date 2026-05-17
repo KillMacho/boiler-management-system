@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from app.models.users import User
 
 
+# Подразделение (отдел) — справочник для группировки сотрудников
 class Department(Base):
     __tablename__ = "departments"
 
@@ -35,6 +36,7 @@ class Department(Base):
     )
 
 
+# Должность содержит базовый оклад, используемый при расчёте зарплаты
 class Position(Base):
     __tablename__ = "positions"
 
@@ -62,6 +64,7 @@ class Qualification(Base):
     )
 
 
+# Сотрудник — центральная HR-сущность; связан с пользователем, бригадой, табелем
 class Employee(Base):
     __tablename__ = "employees"
 
@@ -108,6 +111,7 @@ class Employee(Base):
     )
 
 
+# Контактные данные хранятся отдельно — 1-to-1 с CASCADE delete
 class EmployeeContact(Base):
     __tablename__ = "employee_contacts"
 
@@ -150,6 +154,7 @@ class EmployeeQualification(Base):
     )
 
 
+# Бригада объединяет сотрудников для выполнения нарядов; у неё есть бригадир
 class Brigade(Base):
     __tablename__ = "brigades"
 
@@ -192,6 +197,7 @@ class BrigadeMember(Base):
     )
 
 
+# Связывает тип заявки с необходимыми квалификациями — используется при назначении бригады
 class WorkTypeQualification(Base):
     __tablename__ = "work_type_qualifications"
 
@@ -210,6 +216,7 @@ class WorkTypeQualification(Base):
     )
 
 
+# Строка табеля учёта рабочего времени: тип часов (regular/overtime/vacation/sick)
 class Timesheet(Base):
     __tablename__ = "timesheets"
 

@@ -44,6 +44,7 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Внутренний генератор токена — возвращает строку JWT, уникальный jti и срок жизни
 def _create_token(
     *,
     user_id: int,
@@ -112,6 +113,7 @@ def blacklist_token(jti: str) -> None:
 
 
 # ----------------------------- user lookup ----------------------------------
+# Поиск по имени/id используется при логине и верификации токена
 async def get_user_by_username(session: AsyncSession, username: str) -> Optional[User]:
     stmt = select(User).where(User.username == username)
     result = await session.execute(stmt)

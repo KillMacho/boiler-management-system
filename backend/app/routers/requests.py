@@ -21,6 +21,7 @@ from app.utils.errors import not_found
 router = APIRouter(prefix="/api/v1/requests", tags=["requests"])
 
 
+# Составной ответ: заявка + наряд (если бригада найдена) + предупреждение (если нет)
 class RequestCreatedResponse(BaseModel):
     request: RequestResponse
     work_order: Optional[WorkOrderResponse] = None
@@ -45,6 +46,7 @@ async def list_requests(
     date_to: Optional[datetime] = Query(None),
     session: AsyncSession = Depends(get_db),
 ):
+    # Фильтры опциональны; все они применяются последовательно (AND)
     stmt = select(Request)
     if status_filter:
         stmt = stmt.where(Request.status == status_filter)

@@ -25,6 +25,7 @@ class MaterialCategory(Base):
     )
 
 
+# Материал (номенклатура): содержит минимальный остаток для авто-дозаказа
 class Material(Base):
     __tablename__ = "materials"
 
@@ -66,6 +67,7 @@ class Warehouse(Base):
     )
 
 
+# Остаток материала на конкретном складе; reserved_quantity — зарезервировано под наряды
 class MaterialStock(Base):
     __tablename__ = "material_stock"
 
@@ -91,6 +93,7 @@ class MaterialStock(Base):
     )
 
 
+# Движение материала: income (приход) или outcome (списание на наряд)
 class MaterialMovement(Base):
     __tablename__ = "material_movements"
 

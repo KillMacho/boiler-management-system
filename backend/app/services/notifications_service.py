@@ -20,6 +20,7 @@ from app.services.email_service import email_service
 
 logger = logging.getLogger("notifications_service")
 
+# Jinja2-окружение для HTML/TXT шаблонов писем, загружаемых из папки templates/emails
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates" / "emails"
 _jinja = Environment(
     loader=FileSystemLoader(str(_TEMPLATES_DIR)),
@@ -36,6 +37,7 @@ def _render(template_name: str, **ctx) -> tuple[str, str]:
 
 async def _emails_for_roles(session: AsyncSession, roles: list[str]) -> list[str]:
     """Collect unique email addresses for users with any of the given roles."""
+    # Выбираем только активных сотрудников с включёнными уведомлениями
     result = await session.execute(
         text(
             "SELECT DISTINCT ec.email "

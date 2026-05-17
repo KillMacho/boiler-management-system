@@ -48,6 +48,7 @@ from app.utils.errors import not_found
 
 router = APIRouter(prefix="/api/v1", tags=["warehouse"])
 
+# Складские сущности: жёсткое удаление (нет мягкого статуса)
 material_crud = CRUDBase[Material, MaterialCreate, MaterialUpdate](Material, soft_delete_status=None)
 warehouse_crud = CRUDBase[Warehouse, WarehouseCreate, WarehouseUpdate](Warehouse, soft_delete_status=None)
 mat_cat_crud = CRUDBase[MaterialCategory, MaterialCategoryCreate, MaterialCategoryUpdate](MaterialCategory, soft_delete_status=None)

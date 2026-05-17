@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from app.models.warehouse import MaterialMovement
 
 
+# Тип заявки (Авария / Плановое ТО / Текущий ремонт и др.) — справочник
 class RequestType(Base):
     __tablename__ = "request_types"
 
@@ -52,6 +53,7 @@ class RequestPriority(Base):
     )
 
 
+# Заявка — центральная рабочая единица; проходит через машину состояний до закрытия
 class Request(Base):
     __tablename__ = "requests"
 
@@ -84,6 +86,7 @@ class Request(Base):
     )
 
 
+# Наряд создаётся при назначении бригады и сопровождает заявку до завершения
 class WorkOrder(Base):
     __tablename__ = "work_orders"
 
@@ -157,6 +160,7 @@ class WorkOrderPhoto(Base):
     )
 
 
+# Акт выполненных работ — создаётся при переходе заявки в статус 'act_generated'
 class Act(Base):
     __tablename__ = "acts"
 

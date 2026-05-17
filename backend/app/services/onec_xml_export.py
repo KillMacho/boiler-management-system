@@ -31,12 +31,14 @@ def _parse_period(period: str) -> tuple[date, date]:
     return first, last
 
 
+# Экспортёр данных в XML-формат 1С; создаёт файлы в папке reports/onec-export
 class OneCXMLExporter:
 
     def __init__(self, session: AsyncSession):
         self._session = session
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Выгружает акты за период с разбивкой по материалам и стоимости услуг
     async def export_acts_for_period(self, period: str) -> str:
         first, last = _parse_period(period)
 
@@ -98,6 +100,7 @@ class OneCXMLExporter:
         path.write_text(_pretty_xml(root), encoding="utf-8")
         return str(path)
 
+    # Выгружает только расходные движения материалов (outcome) за период
     async def export_materials_for_period(self, period: str) -> str:
         first, last = _parse_period(period)
 
@@ -144,6 +147,7 @@ class OneCXMLExporter:
         path.write_text(_pretty_xml(root), encoding="utf-8")
         return str(path)
 
+    # Выгружает табель: агрегирует часы по сотруднику за месяц
     async def export_timesheet_for_period(self, period: str) -> str:
         first, last = _parse_period(period)
 
@@ -160,6 +164,7 @@ class OneCXMLExporter:
         ET.SubElement(doc, "Котельная").text = ""
 
         mats_el = ET.SubElement(doc, "Материалы")
+        # Агрегируем часы по employee_id — один XML-элемент на сотрудника
         agg: dict[int, dict] = {}
         for ts in timesheets:
             emp = ts.employee

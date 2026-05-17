@@ -29,6 +29,7 @@ from app.utils.errors import not_found, payload_too_large, unsupported_media
 
 router = APIRouter(prefix="/api/v1/work-orders", tags=["work-orders"])
 
+# Фото нарядов хранятся на диске; допустимы только JPEG/PNG до 10 МБ
 UPLOAD_ROOT = Path("uploads/work_orders")
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG"}
 MAX_PHOTO_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -185,12 +186,12 @@ async def upload_work_order_photo(
     if wo is None:
         raise not_found("work_order", work_order_id)
 
-    # Read to memory (streaming would be better but simpler here, with size cap)
+    # Читаем на 1 байт больше лимита, чтобы обнаружить превышение без полной загрузки
     data = await file.read(MAX_PHOTO_BYTES + 1)
     if len(data) > MAX_PHOTO_BYTES:
         raise payload_too_large(f"Max {MAX_PHOTO_BYTES} bytes")
 
-    # Validate via Pillow (rejects non-images, identifies real format vs ext)
+    # Проверяем реальный формат через Pillow — защита от подмены расширения
     try:
         with Image.open(BytesIO(data)) as img:
             img.verify()  # checks integrity

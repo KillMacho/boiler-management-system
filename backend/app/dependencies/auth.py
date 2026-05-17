@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models.users import User
 from app.services import auth_service
 
+# Схема Bearer-токена: FastAPI автоматически читает заголовок Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=True)
 
 CREDENTIALS_EXC = HTTPException(
@@ -20,6 +21,7 @@ CREDENTIALS_EXC = HTTPException(
 )
 
 
+# Зависимость: декодирует токен, проверяет blacklist и статус пользователя
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_db),
@@ -61,6 +63,7 @@ class RoleChecker:
         self.allowed_roles: List[str] = list(allowed_roles)
 
     def __call__(self, user: User = Depends(get_current_user)) -> User:
+        # Проверяем пересечение ролей пользователя с разрешёнными
         user_roles = set(user.role_names)
         if not user_roles.intersection(self.allowed_roles):
             raise HTTPException(

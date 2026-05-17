@@ -26,6 +26,7 @@ async def _next_number(
     today_prefix = _today_prefix(prefix)
     stmt = select(func.max(column)).where(column.like(f"{today_prefix}%"))
     last_number: str | None = (await session.execute(stmt)).scalar_one_or_none()
+    # Определяем следующий порядковый номер дня: MAX + 1 или 1 если записей ещё нет
     next_seq = 1
     if last_number:
         try:
