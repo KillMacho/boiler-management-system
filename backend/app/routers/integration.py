@@ -11,6 +11,7 @@ from app.database import get_db
 from app.dependencies.auth import RoleChecker
 from app.services.onec_client import onec_client
 from app.services.onec_period_service import send_period_to_onec
+from app.services.onec_xml_export import OneCXMLExporter
 from app.services.permissions import ALL_ADMIN
 
 router = APIRouter(prefix="/api/v1/integration", tags=["integration / 1C"])
@@ -65,6 +66,34 @@ async def send_period(
         errors=result.errors,
         success=len(result.errors) == 0,
     )
+
+
+@router.post(
+    "/onec/export-xml",
+    summary="Export period data to XML file for 1C import",
+)
+async def export_xml_for_onec(
+    period: str,
+    data_type: str,
+    session: AsyncSession = Depends(get_db),
+    _user=Depends(RoleChecker(ALL_ADMIN)),
+) -> dict:
+    """
+    period: 'YYYY-MM' (e.g. '2026-04')
+    data_type: 'Акты' | 'Материалы' | 'Табель'
+    """
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", period):
+        raise HTTPException(status_code=400, detail="period must be YYYY-MM")
+    exporter = OneCXMLExporter(session)
+    if data_type == "Акты":
+        path = await exporter.export_acts_for_period(period)
+    elif data_type == "Материалы":
+        path = await exporter.export_materials_for_period(period)
+    elif data_type == "Табель":
+        path = await exporter.export_timesheet_for_period(period)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown data_type: {data_type}. Use: Акты, Материалы, Табель")
+    return {"path": path, "period": period, "data_type": data_type}
 
 
 @router.get(
