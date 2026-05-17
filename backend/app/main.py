@@ -22,6 +22,7 @@ from app.routers import (
     lookups,
     maintenance,
     monitoring,
+    notifications,
     personnel,
     reporting,
     requests,
@@ -147,4 +148,5 @@ app.include_router(audit.router)
 app.include_router(lookups.router)
 app.include_router(integration.router)
 app.include_router(reporting.router)
+app.include_router(notifications.router)
 app.include_router(monitoring_ws.router)

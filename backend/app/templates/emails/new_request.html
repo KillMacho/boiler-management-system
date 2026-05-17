@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Новая заявка</title></head>
+<body style="font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px;">
+  <div style="max-width:600px; margin:auto; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.1);">
+    <div style="background:#1976d2; padding:20px 24px;">
+      <h1 style="color:#fff; margin:0; font-size:20px;">Новая заявка на обслуживание</h1>
+    </div>
+    <div style="padding:24px;">
+      <p>Здравствуйте!</p>
+      <p>В системе создана новая заявка:</p>
+      <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold; width:40%;">Номер заявки</td><td style="padding:8px;">{{ request_number }}</td></tr>
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold;">Котельная</td><td style="padding:8px;">{{ boiler_name }}</td></tr>
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold;">Тип</td><td style="padding:8px;">{{ request_type }}</td></tr>
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold;">Приоритет</td><td style="padding:8px;">{{ priority }}</td></tr>
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold;">Описание</td><td style="padding:8px;">{{ description }}</td></tr>
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold;">Создана</td><td style="padding:8px;">{{ created_at }}</td></tr>
+      </table>
+      <p style="color:#666; font-size:13px;">Войдите в систему для просмотра подробностей.</p>
+    </div>
+    <div style="background:#f0f4f8; padding:12px 24px; text-align:center; color:#999; font-size:12px;">
+      Котельный сервис — автоматическое уведомление
+    </div>
+  </div>
+</body>
+</html>

@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     edo_timeout: float = 60.0
     edo_org_inn: str = "7700000001"
 
+    # --- SMTP ---
+    smtp_host: str = "sandbox.smtp.mailtrap.io"
+    smtp_port: int = 2525
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@boiler-service.ru"
+    smtp_from_name: str = "Котельный сервис"
+
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
     def _split_origins(cls, v):

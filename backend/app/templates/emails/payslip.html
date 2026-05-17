@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Расчётный листок</title></head>
+<body style="font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px;">
+  <div style="max-width:600px; margin:auto; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.1);">
+    <div style="background:#5c6bc0; padding:20px 24px;">
+      <h1 style="color:#fff; margin:0; font-size:20px;">Расчётный листок</h1>
+    </div>
+    <div style="padding:24px;">
+      <p>Здравствуйте, <b>{{ employee_name }}</b>!</p>
+      <p>Направляем Ваш расчётный листок за <b>{{ period }}</b>.</p>
+      <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold; width:50%;">Начислено</td><td style="padding:8px; text-align:right;">{{ total_accrued }} руб.</td></tr>
+        <tr><td style="padding:8px; background:#f0f4f8; font-weight:bold;">Удержано</td><td style="padding:8px; text-align:right;">{{ total_deducted }} руб.</td></tr>
+        <tr style="background:#d4edda;"><td style="padding:10px; font-weight:bold; font-size:15px;">К выплате</td><td style="padding:10px; text-align:right; font-weight:bold; font-size:15px; color:#2e7d32;">{{ net_pay }} руб.</td></tr>
+      </table>
+      <p style="color:#666; font-size:13px;">Подробный расчётный листок прикреплён в формате PDF.</p>
+    </div>
+    <div style="background:#f0f4f8; padding:12px 24px; text-align:center; color:#999; font-size:12px;">
+      Котельный сервис — автоматическое уведомление
+    </div>
+  </div>
+</body>
+</html>

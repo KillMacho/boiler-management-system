@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Аварийная ситуация</title></head>
+<body style="font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px;">
+  <div style="max-width:600px; margin:auto; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.1);">
+    <div style="background:#d32f2f; padding:20px 24px;">
+      <h1 style="color:#fff; margin:0; font-size:20px;">&#9888; АВАРИЙНАЯ СИТУАЦИЯ</h1>
+    </div>
+    <div style="padding:24px;">
+      <p>Зафиксировано превышение критического порога!</p>
+      <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+        <tr><td style="padding:8px; background:#fdecea; font-weight:bold; width:40%;">Котельная</td><td style="padding:8px; background:#fdecea;">{{ boiler_name }}</td></tr>
+        <tr><td style="padding:8px; background:#fdecea; font-weight:bold;">Параметр</td><td style="padding:8px; background:#fdecea;">{{ parameter_name }}</td></tr>
+        <tr><td style="padding:8px; background:#fdecea; font-weight:bold;">Значение</td><td style="padding:8px; background:#fdecea; color:#d32f2f; font-weight:bold;">{{ value }}</td></tr>
+        <tr><td style="padding:8px; background:#fdecea; font-weight:bold;">Порог</td><td style="padding:8px; background:#fdecea;">{{ threshold_kind }}</td></tr>
+        <tr><td style="padding:8px; background:#fdecea; font-weight:bold;">Время</td><td style="padding:8px; background:#fdecea;">{{ detected_at }}</td></tr>
+        <tr><td style="padding:8px; background:#fdecea; font-weight:bold;">Заявка</td><td style="padding:8px; background:#fdecea;">{{ request_number }}</td></tr>
+      </table>
+      <p style="color:#d32f2f; font-weight:bold;">Требуется немедленное реагирование!</p>
+    </div>
+    <div style="background:#f0f4f8; padding:12px 24px; text-align:center; color:#999; font-size:12px;">
+      Котельный сервис — автоматическое уведомление системы мониторинга
+    </div>
+  </div>
+</body>
+</html>
