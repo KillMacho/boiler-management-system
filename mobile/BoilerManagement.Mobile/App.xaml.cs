@@ -28,7 +28,7 @@ public partial class App : Application
         var restored = await _authService.TryRestoreSessionAsync();
         if (restored)
         {
-            await Shell.Current.GoToAsync("//main/workorders");
+            await Shell.Current.GoToAsync("//workorders");
         }
     }
 }

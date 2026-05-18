@@ -38,7 +38,7 @@ public partial class LoginViewModel(AuthService authService) : BaseViewModel
             var success = await authService.LoginAsync(Username.Trim(), Password);
             if (success)
             {
-                await Shell.Current.GoToAsync("//main/workorders");
+                await Shell.Current.GoToAsync("//workorders");
             }
             else
             {
