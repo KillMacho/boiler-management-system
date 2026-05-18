@@ -26,6 +26,9 @@ BoilerManagementSystem/
 | Отчётность | Jinja2-шаблоны XML, lxml (КНД-форматы ФНС) |
 | Симулятор | asyncio, httpx, pydantic-settings |
 | Mock-сервисы | FastAPI, API Key аутентификация |
+| Мобильное приложение | .NET MAUI, Android, CommunityToolkit.Mvvm |
+| Email | aiosmtplib, Mailtrap sandbox, reportlab (PDF), Jinja2 |
+| 1С | 1С:Предприятие 8.3, СКД, XML-интеграция |
 
 ## Быстрый старт
 
@@ -43,6 +46,10 @@ sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagemen
 sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagementDB -i database/07_AddMonitoringIndex.sql
 sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagementDB -i database/08_ExtendStatusConstraints.sql
 sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagementDB -i database/09_AddRegulatoryReportsTable.sql
+sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagementDB -i database/10_RemoveExtraBoilers.sql
+sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagementDB -i database/11_SetBrigade1Password.sql
+sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagementDB -i database/12_AddPayslipDistributionLog.sql
+sqlcmd -S "localhost\SQLEXPRESS" -U sa -P "<пароль>" -C -d BoilerManagementDB -i database/13_PopulateEmployeeContacts.sql
 ```
 
 ### 2. Backend
@@ -101,6 +108,7 @@ uvicorn app.main:app --port 8081
 | customers | `/api/v1/customers` | Клиенты (CRUD) |
 | reporting | `/api/v1/reporting` | Генерация XML-отчётов (6-НДФЛ, РСВ, 4-ФСС, СЗВ-СТАЖ) и отправка в ЭДО |
 | integration | `/api/v1/integration` | Синхронизация с 1С |
+| notifications | `/api/v1/notifications` | Email-уведомления, рассылка расчётных листков |
 | audit | `/api/v1/audit` | Журнал действий |
 | lookups | `/api/v1/lookups` | Справочники (read-only) |
 
@@ -181,3 +189,11 @@ python -m pytest tests/ -v
 | 5 | Симулятор телеметрии 15 котельных с 5 сценариями аварий |
 | 6 | Mock-сервер 1С + реальный `OneCClient` (httpx + tenacity) |
 | 7 | Mock оператора ЭДО + модуль регламентированной отчётности (XML КНД) |
+| 8 | Blazor Server фронтенд: дашборд мониторинга, журнал заявок, управление нарядами, складской учёт |
+| 9 | Blazor: кадровый модуль, расписание ТО, регламентированная отчётность, WebSocket-телеметрия в реальном времени |
+| 10 | Нагрузочное тестирование телеметрии (15 параллельных потоков), стабилизация concurrent POST |
+| 11 | .NET MAUI Android-приложение для бригадиров: логин, список нарядов, чек-лист, фото с камеры, завершение наряда |
+| 12–13 | 1С:Предприятие 8.3 — справочники, план счетов, регистры бухгалтерского учёта и материалов |
+| 14 | 1С: 4 документа с проведением — акт выполненных работ, списание материалов, табель, начисление зарплаты |
+| 15 | 1С: 4 отчёта СКД (ОСВ, карточка счёта, остатки, расчётные листки), XML import/export, backend-эндпоинт выгрузки в 1С |
+| 16 | Email-система: async SMTP (Mailtrap), PDF расчётных листков (reportlab), массовая рассылка, уведомления о событиях |
