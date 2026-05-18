@@ -6,12 +6,66 @@
 
 ```
 BoilerManagementSystem/
-├── backend/                     # FastAPI REST API (Python 3.11)
-├── simulator/                   # Симулятор телеметрии 15 котельных
+├── backend/                          # FastAPI REST API (Python 3.11)
+│   ├── app/
+│   │   ├── models/                   # SQLAlchemy ORM (39 таблиц, 9 модулей)
+│   │   ├── schemas/                  # Pydantic v2 схемы запросов/ответов
+│   │   ├── routers/                  # 15 роутеров (/api/auth, /api/v1/*)
+│   │   ├── services/                 # Бизнес-логика (22 сервиса)
+│   │   │   ├── auth_service.py       # JWT, blacklist, RBAC
+│   │   │   ├── monitoring_service.py # Пороги, StatusCache, автозаявки
+│   │   │   ├── request_service.py    # Классификация, дедупликация, переходы
+│   │   │   ├── brigade_assigner.py   # Назначение бригад по квалификациям
+│   │   │   ├── regulated_reporting.py# Генерация XML КНД (6-НДФЛ, РСВ, 4-ФСС)
+│   │   │   ├── onec_xml_export.py    # Выгрузка актов/материалов/табеля в 1С
+│   │   │   ├── email_service.py      # Async SMTP (aiosmtplib, Mailtrap)
+│   │   │   ├── payslip_pdf_generator.py # PDF расчётных листков (reportlab)
+│   │   │   └── payroll_distribution_service.py # Массовая рассылка расчётков
+│   │   ├── templates/
+│   │   │   ├── reports/              # XML-шаблоны КНД отчётов
+│   │   │   └── emails/               # Jinja2 HTML+TXT шаблоны писем (6 типов)
+│   │   ├── dependencies/             # auth.py (RoleChecker), pagination.py
+│   │   ├── utils/                    # errors.py, json_encoder.py, logging_middleware.py
+│   │   └── websocket/                # WebSocket мониторинг (real-time телеметрия)
+│   ├── reports/                      # Сгенерированные XML-отчёты и выгрузки 1С
+│   ├── uploads/work_orders/          # Фото нарядов (загружаются с мобильного)
+│   ├── logs/                         # Ротируемые логи ошибок БД
+│   └── tests/                        # pytest (97 тестов)
+│
+├── web/BoilerManagement.Web/         # Blazor Server фронтенд (.NET 10)
+│   ├── Components/Pages/
+│   │   ├── Monitoring/               # Дашборд, карточки котельных, аварии
+│   │   ├── Requests/                 # Журнал заявок, создание, детали
+│   │   ├── WorkOrders/               # Наряды, старт/завершение
+│   │   ├── Warehouse/                # Склад, материалы, движения
+│   │   ├── Personnel/                # Сотрудники, бригады, табель
+│   │   ├── Maintenance/              # Расписание ТО, регламенты
+│   │   ├── Reporting/                # Генерация и отправка отчётов ФНС
+│   │   ├── Accounting.razor          # Бухгалтерия, email-рассылки
+│   │   └── Audit/                    # Журнал аудита действий
+│   ├── Services/                     # ApiClient, DTOs, WebSocket-клиент
+│   └── Authentication/               # JWT Blazor AuthStateProvider
+│
+├── mobile/BoilerManagement.Mobile/   # .NET MAUI Android (для бригадиров)
+│   ├── Pages/                        # LoginPage, WorkOrdersListPage, WorkOrderDetailPage, ProfilePage
+│   ├── ViewModels/                   # MVVM (CommunityToolkit.Mvvm)
+│   └── Services/                     # ApiClient, AuthService, WorkOrderService
+│
+├── simulator/                        # Симулятор телеметрии 15 котельных
+│   └── app/                          # 5 сценариев аварий, async httpx
+│
 ├── mock-services/
-│   ├── onec-mock/               # Mock-сервер 1С (порт 8080)
-│   └── edo-mock/                # Mock оператора ЭДО (порт 8081)
-└── database/                    # SQL-скрипты (SQL Server / SQL Server Express)
+│   ├── onec-mock/                    # Mock 1С REST API (порт 8080)
+│   └── edo-mock/                     # Mock оператора ЭДО (порт 8081)
+│
+├── onec-config/
+│   └── docs/                         # Инструкции по настройке 1С:Предприятие 8.3
+│       ├── 01_Directories.md         # Справочники
+│       ├── 02_AccountingPlan.md      # План счетов и регистры
+│       ├── 03_Documents.md           # 4 документа с проведением
+│       └── 04_Reports_and_Integration.md # СКД-отчёты, XML import/export
+│
+└── database/                         # SQL Server миграции (13 скриптов)
 ```
 
 ## Стек технологий
