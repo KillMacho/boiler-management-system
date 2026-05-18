@@ -5,7 +5,7 @@ Write-Host "Starting all services..." -ForegroundColor Green
 
 # Backend
 Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "cd '$root\backend'; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8000"
+    "cd '$root\backend'; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 Start-Sleep -Seconds 3
 

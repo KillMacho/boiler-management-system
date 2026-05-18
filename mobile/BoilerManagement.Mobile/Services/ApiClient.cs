@@ -7,7 +7,7 @@ namespace BoilerManagement.Mobile.Services;
 
 public class ApiClient
 {
-    public const string BaseUrl = "http://10.0.2.2:8000";
+    public const string BaseUrl = "http://192.168.1.2:8000";
 
     private readonly HttpClient _http;
     private readonly SecureStorageService _storage;
