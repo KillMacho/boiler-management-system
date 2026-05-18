@@ -7,6 +7,7 @@ from httpx import AsyncClient
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
+# Тестовая котельная — создаётся и удаляется в рамках теста
 NEW_BOILER = {
     "name": "Тест-котельная pytest",
     "address": "ул. Тестовая, 999",
@@ -33,7 +34,7 @@ async def test_list_boilers(client: AsyncClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
-    # Test data seeds 15 boilers
+    # Скрипт 05_InsertTestData.sql добавляет 15 котельных
     assert len(data) >= 15
 
 
@@ -41,7 +42,7 @@ async def test_list_boilers(client: AsyncClient) -> None:
 async def test_boiler_crud_and_soft_delete(client: AsyncClient) -> None:
     headers = await _auth_headers(client)
 
-    # Create
+    # Создаём котельную
     resp = await client.post("/api/v1/boilers/", json=NEW_BOILER, headers=headers)
     assert resp.status_code == 201, resp.text
     boiler = resp.json()
@@ -49,7 +50,7 @@ async def test_boiler_crud_and_soft_delete(client: AsyncClient) -> None:
     assert boiler["name"] == NEW_BOILER["name"]
     assert boiler["status"] == "active"
 
-    # Update
+    # Обновляем название
     resp = await client.put(
         f"/api/v1/boilers/{boiler_id}",
         json={"name": "Тест-котельная UPDATED"},
@@ -58,16 +59,16 @@ async def test_boiler_crud_and_soft_delete(client: AsyncClient) -> None:
     assert resp.status_code == 200, resp.text
     assert resp.json()["name"] == "Тест-котельная UPDATED"
 
-    # Soft-delete
+    # Мягкое удаление — запись остаётся в БД со статусом decommissioned
     resp = await client.delete(f"/api/v1/boilers/{boiler_id}", headers=headers)
     assert resp.status_code == 204
 
-    # Without include_deleted — not visible
+    # Без флага include_deleted удалённая котельная не видна
     resp = await client.get("/api/v1/boilers/", headers=headers)
     ids = [b["id"] for b in resp.json()]
     assert boiler_id not in ids
 
-    # With include_deleted=true — visible, status=decommissioned
+    # С include_deleted=true — видна, статус decommissioned
     resp = await client.get(
         "/api/v1/boilers/", params={"include_deleted": "true"}, headers=headers
     )

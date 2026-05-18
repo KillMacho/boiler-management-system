@@ -4,7 +4,8 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-BOILER_ID = 7  # dedicated boiler for assigner tests
+# Котельная 7 — зарезервирована для тестов назначения бригад
+BOILER_ID = 7
 
 
 async def _auth_headers(client: AsyncClient) -> dict:
@@ -17,6 +18,7 @@ async def _auth_headers(client: AsyncClient) -> dict:
 
 
 async def _cancel_open(client: AsyncClient, boiler_id: int, headers: dict) -> None:
+    # Чистим открытые заявки перед тестом, чтобы уникальный индекс не блокировал создание новых
     resp = await client.get(
         "/api/v1/requests/", params={"boiler_id": boiler_id}, headers=headers
     )

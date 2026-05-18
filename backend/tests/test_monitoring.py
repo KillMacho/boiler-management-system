@@ -4,7 +4,8 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-BOILER_ID = 15  # same boiler as telemetry tests, so cache should have a reading
+# Та же котельная, что и в test_telemetry — кеш StatusCache уже должен иметь показания
+BOILER_ID = 15
 
 NORMAL_PAYLOAD = {
     "boiler_id": BOILER_ID,
@@ -30,6 +31,7 @@ async def _auth_headers(client: AsyncClient) -> dict:
 
 @pytest.mark.asyncio
 async def test_dashboard_status_returns_all_boilers(client: AsyncClient) -> None:
+    # Дашборд должен показывать запись для каждой из 15 котельных
     headers = await _auth_headers(client)
     resp = await client.get("/api/v1/monitoring/status", headers=headers)
     assert resp.status_code == 200
@@ -44,7 +46,7 @@ async def test_dashboard_status_returns_all_boilers(client: AsyncClient) -> None
 @pytest.mark.asyncio
 async def test_dashboard_shows_red_after_critical(client: AsyncClient) -> None:
     headers = await _auth_headers(client)
-    # Ensure a critical reading is in the StatusCache
+    # Отправляем критическое значение температуры чтобы обновить StatusCache
     await client.post("/api/v1/telemetry/", json=CRITICAL_PAYLOAD)
 
     resp = await client.get("/api/v1/monitoring/status", headers=headers)

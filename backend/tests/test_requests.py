@@ -4,7 +4,8 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-BOILER_ID = 10  # use a boiler unlikely to have test conflicts
+# Котельная 10 — выбрана так, чтобы не пересекаться с тестами телеметрии (15) и назначений (7)
+BOILER_ID = 10
 
 
 async def _auth_headers(client: AsyncClient) -> dict:
@@ -17,7 +18,7 @@ async def _auth_headers(client: AsyncClient) -> dict:
 
 
 async def _cancel_open_requests(client: AsyncClient, boiler_id: int, headers: dict) -> None:
-    """Ensure no open requests block the unique-index for this boiler."""
+    # Отменяем открытые заявки перед тестом — иначе уникальный индекс не даст создать новую Аварию
     resp = await client.get(
         "/api/v1/requests/", params={"boiler_id": boiler_id}, headers=headers
     )

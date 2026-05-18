@@ -18,7 +18,7 @@ async def _auth_headers(client: AsyncClient) -> dict:
 
 @pytest.mark.asyncio
 async def test_generate_plan_creates_schedule(client: AsyncClient) -> None:
-    """POST /maintenance/generate-plan returns a schedule with a valid id."""
+    # Генерируем план на 90 дней вперёд — ожидаем schedule_id и количество созданных позиций
     headers = await _auth_headers(client)
 
     today = date.today()

@@ -7,12 +7,14 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
+# Учётные данные тестового администратора (создаются скриптом 06_CreateAdminUser.sql)
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
 
 @pytest.mark.asyncio
 async def test_health(client: AsyncClient) -> None:
+    # Проверяем, что сервер вообще отвечает
     response = await client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
@@ -20,6 +22,7 @@ async def test_health(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_login_success(client: AsyncClient) -> None:
+    # Успешный логин должен вернуть три токена и данные пользователя
     response = await client.post(
         "/api/auth/login",
         data={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD},
@@ -35,6 +38,7 @@ async def test_login_success(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient) -> None:
+    # Неверный пароль → 401
     response = await client.post(
         "/api/auth/login",
         data={"username": ADMIN_USERNAME, "password": "wrong-pass"},
@@ -44,12 +48,14 @@ async def test_login_wrong_password(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_me_requires_token(client: AsyncClient) -> None:
+    # Запрос без токена должен отклоняться
     response = await client.get("/api/auth/me")
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_me_with_token(client: AsyncClient) -> None:
+    # После логина /me должен вернуть данные текущего пользователя
     login = await client.post(
         "/api/auth/login",
         data={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD},
@@ -65,6 +71,7 @@ async def test_me_with_token(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_token(client: AsyncClient) -> None:
+    # Refresh-токен должен выдать новый access-токен
     login = await client.post(
         "/api/auth/login",
         data={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD},
@@ -80,6 +87,7 @@ async def test_refresh_token(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_logout_revokes_token(client: AsyncClient) -> None:
+    # После logout токен попадает в blacklist и перестаёт работать
     login = await client.post(
         "/api/auth/login",
         data={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD},
@@ -91,6 +99,7 @@ async def test_logout_revokes_token(client: AsyncClient) -> None:
     )
     assert logout.status_code == 200
 
+    # Тот же токен после logout должен возвращать 401
     me_after = await client.get(
         "/api/auth/me", headers={"Authorization": f"Bearer {token}"}
     )

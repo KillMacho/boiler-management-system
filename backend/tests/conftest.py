@@ -21,6 +21,7 @@ from app.database import get_db
 from app.main import app
 from app.services.reference_cache import reference_cache
 
+# NullPool — соединения не переживают между тестами; каждый тест получает чистое соединение
 _test_engine = create_async_engine(
     settings.sqlalchemy_async_url,
     poolclass=NullPool,
@@ -40,13 +41,14 @@ async def _get_test_db() -> AsyncGenerator:
             raise
 
 
-# Override the production DB dependency for the whole test session.
+# Подменяем зависимость get_db на тестовую сессию для всего тестового сеанса
 app.dependency_overrides[get_db] = _get_test_db
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def _warmup_reference_cache() -> None:
     """Warm reference_cache before any test runs (startup event doesn't fire in ASGI transport)."""
+    # startup-событие FastAPI не срабатывает в ASGI-транспорте — греем кеш вручную
     async with _TestSession() as session:
         await reference_cache.warmup(session)
 
@@ -58,6 +60,7 @@ def anyio_backend() -> str:
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
+    # Каждый тест получает свежий AsyncClient с ASGI-транспортом (без реального сервера)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

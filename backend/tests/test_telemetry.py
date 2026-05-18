@@ -5,8 +5,8 @@ import asyncio
 import pytest
 from httpx import AsyncClient
 
-# Boiler 15 used here to avoid interfering with other tests.
-# Critical threshold for temperature_heat in test data: max_critical=120°C.
+# Котельная 15 — используется только в этом модуле, чтобы не конфликтовать с другими тестами
+# Критический порог temperature_heat в тестовых данных: max_critical=120°C
 BOILER_ID = 15
 
 NORMAL_PAYLOAD = {
@@ -34,6 +34,7 @@ async def _auth_headers(client: AsyncClient) -> dict:
 
 @pytest.mark.asyncio
 async def test_normal_telemetry(client: AsyncClient) -> None:
+    # Нормальные показатели → статус normal, авто-заявка не создаётся
     resp = await client.post("/api/v1/telemetry/", json=NORMAL_PAYLOAD)
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -46,7 +47,7 @@ async def test_normal_telemetry(client: AsyncClient) -> None:
 async def test_critical_telemetry_creates_auto_request(client: AsyncClient) -> None:
     headers = await _auth_headers(client)
 
-    # Count open Авария requests for this boiler before sending
+    # Считаем открытые аварийные заявки до отправки критических данных
     before_resp = await client.get(
         "/api/v1/requests/",
         params={"boiler_id": BOILER_ID, "source": "monitoring"},
